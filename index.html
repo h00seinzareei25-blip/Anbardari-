@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#EEF0F2">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>انبار پزشکی</title>
+<style>
+  :root{
+    --brand-deep:#111111;
+    --brand:#2F2F2F;
+    --brand-soft:#F1F2F3;
+    --gold:#A8ADB3;
+    --bg:#EEF0F2;
+    --card:#FFFFFF;
+    --ink:#17191C;
+    --muted:#7C8289;
+    --line:#DFE2E5;
+    --danger:#C84A4A;
+    --warn:#8D6E45;
+    --ok:#111111;
+    --accent:#2F2F2F;
+    --accent-deep:#4B4F54;
+    --cream:#F1F2F3;
+    --teal-soft:#ECEEEF;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Vazirmatn','IRANSans','Segoe UI',system-ui,Tahoma,sans-serif;
+    background:var(--bg);color:var(--ink);
+    font-size:15px;line-height:1.6;
+    padding-bottom:env(safe-area-inset-bottom);
+    -webkit-text-size-adjust:100%;
+  }
+  button{font-family:inherit;border:0;cursor:pointer;color:inherit;background:none;}
+  input,select,textarea{font-family:inherit;font-size:15px;}
+
+  /* header */
+  .top{
+    background:#EEF0F2;color:#17191C;border-bottom:1px solid var(--line);
+    padding:14px 16px;padding-top:calc(14px + env(safe-area-inset-top));
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    position:sticky;top:0;z-index:30;
+  }
+  .top h1{font-size:17px;margin:0;font-weight:800;display:flex;align-items:center;gap:8px;}
+  .top h1 .dot{width:9px;height:9px;border-radius:50%;background:var(--gold);display:inline-block;}
+  .menu-btn{font-size:22px;padding:4px 8px;border-radius:10px;background:#FFFFFF;border:1px solid var(--line);}
+
+  .wrap{padding:14px 14px 120px;max-width:680px;margin:0 auto;}
+
+  /* stats */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px;}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 5px 14px rgba(17,17,17,.055);padding:11px 10px;text-align:center;}
+  .stat .n{font-size:21px;font-weight:800;color:var(--brand-deep);line-height:1.1;}
+  .stat .n.danger{color:var(--danger);}
+  .stat .l{font-size:11px;color:var(--muted);margin-top:3px;font-weight:600;}
+
+  .search{display:flex;gap:8px;margin-bottom:12px;}
+  .search input{flex:1;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 13px;outline:none;}
+  .search input:focus{border-color:var(--brand);}
+
+  .sec-title{font-size:13px;color:var(--muted);font-weight:700;margin:4px 2px 8px;display:flex;justify-content:space-between;align-items:center;}
+
+  /* item card */
+  .item{
+    background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:0 5px 14px rgba(17,17,17,.055);padding:12px 13px;margin-bottom:10px;display:flex;align-items:center;gap:12px;
+  }
+  .item:active{background:#F8F9FA;}
+  .item .info{flex:1;min-width:0;}
+  .item .nm{font-weight:800;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .item .meta{font-size:12px;color:var(--muted);margin-top:2px;}
+  .item .meta b{color:var(--accent-deep);font-weight:800;}
+  .item .amount{text-align:center;flex:0 0 auto;}
+  .drag-handle{flex:0 0 34px;width:34px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:22px;font-weight:800;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;}
+  .drag-handle:active{cursor:grabbing;background:var(--brand-soft);color:var(--brand-deep);}
+  .item.dragging{opacity:.55;transform:scale(.985);box-shadow:0 8px 24px rgba(17,17,17,.16);}
+  .item.drag-over{border-color:var(--brand);background:var(--brand-soft);}
+  body.reordering{overflow:hidden;touch-action:none;}
+  .reorder-hint{font-size:11px;color:var(--muted);font-weight:600;}
+  .item .amount .q{font-size:24px;font-weight:800;color:var(--brand-deep);line-height:1;direction:ltr;font-variant-numeric:tabular-nums;}
+  .item .amount .q.low{color:var(--danger);}
+  .item .amount .u{font-size:11px;color:var(--muted);margin-top:2px;}
+  .badge-low{display:inline-block;background:#F4E7E7;color:var(--danger);font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:20px;margin-top:5px;}
+  .badge-out{background:#F0DDDA;}
+
+  .empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:14px;}
+  .empty .big{font-size:40px;margin-bottom:8px;}
+
+  /* bottom action bar */
+  .bar{
+    position:fixed;left:0;right:0;bottom:0;z-index:40;
+    background:rgba(255,255,255,.96);backdrop-filter:blur(8px);
+    border-top:1px solid var(--line);
+    padding:9px 12px;padding-bottom:calc(9px + env(safe-area-inset-bottom));
+    display:flex;gap:8px;max-width:680px;margin:0 auto;
+  }
+  .bar button{flex:1;border-radius:12px;padding:12px 6px;font-weight:800;font-size:13.5px;
+    display:flex;flex-direction:column;align-items:center;gap:3px;border:1px solid var(--line);background:#fff;color:var(--brand-deep);}
+  .bar button .ic{font-size:18px;}
+  .bar button.primary{background:linear-gradient(135deg,#111111,#33363A);color:#fff;border-color:#2F2F2F;box-shadow:0 8px 18px rgba(17,17,17,.18);}
+
+  /* sheet */
+  .scrim{position:fixed;inset:0;background:rgba(17,17,17,.42);z-index:50;display:none;}
+  .scrim.show{display:block;}
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:60;
+    background:var(--bg);border-radius:20px 20px 0 0;
+    max-height:92vh;overflow:auto;transform:translateY(100%);transition:transform .25s ease;
+    padding:6px 16px calc(20px + env(safe-area-inset-bottom));
+  }
+  .sheet.show{transform:translateY(0);}
+  .grab{width:42px;height:5px;border-radius:5px;background:#C9CDD1;margin:8px auto 6px;}
+  .sheet h2{font-size:17px;margin:0 -16px 14px;padding:10px 16px;background:var(--bg);font-weight:800;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:3;border-bottom:1px solid var(--line);}
+  .sheet h2 .x{font-size:20px;color:var(--muted);padding:4px 8px;}
+
+  .field{margin-bottom:13px;}
+  .field label{display:block;font-size:12.5px;color:var(--muted);font-weight:700;margin-bottom:6px;}
+  .field input,.field select,.field textarea{
+    width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:12px 13px;outline:none;
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--brand);}
+  .field input[type=number]{direction:ltr;text-align:right;font-variant-numeric:tabular-nums;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .row3{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px;}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:5px;}
+
+  .save-btn{width:100%;background:linear-gradient(135deg,#111111,#33363A);color:#fff;font-weight:800;font-size:15px;border-radius:14px;padding:14px;margin-top:6px;box-shadow:0 8px 18px rgba(17,17,17,.16);}
+  .save-btn:active{background:#4B4F54;}
+  .ghost-btn{width:100%;background:#fff;color:var(--brand-deep);border:1px solid var(--line);font-weight:700;border-radius:12px;padding:12px;margin-top:9px;}
+  .del-btn{width:100%;background:#fff;color:var(--danger);border:1px solid #DBC9C7;font-weight:700;border-radius:12px;padding:12px;margin-top:9px;}
+
+  /* big number input for patients */
+  .bignum{background:var(--brand-soft);border:1.5px solid var(--brand);border-radius:16px;padding:14px;text-align:center;margin-bottom:14px;}
+  .bignum label{font-size:13px;color:var(--brand-deep);font-weight:800;display:block;margin-bottom:8px;}
+  .bignum input{width:100%;border:0;background:transparent;text-align:center;font-size:40px;font-weight:800;color:var(--brand-deep);outline:none;direction:ltr;font-variant-numeric:tabular-nums;}
+
+  /* preview table */
+  .ptable{background:var(--card);border:1px solid var(--line);border-radius:13px;overflow:hidden;margin-bottom:6px;}
+  .prow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);}
+  .prow:last-child{border-bottom:0;}
+  .prow .pn{flex:1;font-weight:700;font-size:14px;min-width:0;}
+  .prow .pn small{display:block;color:var(--muted);font-weight:600;font-size:11.5px;}
+  .prow .pq{text-align:center;direction:ltr;font-variant-numeric:tabular-nums;}
+  .prow .pq .minus{font-size:17px;font-weight:800;color:var(--danger);}
+  .prow .pq .after{font-size:11.5px;color:var(--muted);margin-top:1px;}
+  .prow .pq .after.bad{color:var(--danger);font-weight:800;}
+  .prow.off{opacity:.4;}
+  .prow .tg{flex:0 0 auto;width:24px;height:24px;border-radius:7px;border:1.5px solid var(--brand);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;background:var(--brand);font-weight:800;}
+  .prow.off .tg{background:#fff;color:transparent;border-color:var(--line);}
+  .warnbox{background:#F4E7E7;color:var(--danger);border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:700;margin-bottom:10px;}
+  .okbox{background:var(--brand-soft);color:var(--brand-deep);border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:700;margin-bottom:10px;}
+
+  /* kardex */
+  .kx{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
+  .kx .kic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:0 0 auto;}
+  .kx .kinfo{flex:1;min-width:0;}
+  .kx .kt{font-weight:700;font-size:13.5px;}
+  .kx .kd{font-size:11.5px;color:var(--muted);}
+  .kx .kq{text-align:center;direction:ltr;font-variant-numeric:tabular-nums;font-weight:800;}
+  .kq.pos{color:var(--ok);}
+  .kq.neg{color:var(--danger);}
+  .kq .bal{display:block;font-size:11px;color:var(--muted);font-weight:600;}
+
+  /* menu */
+  .menu-item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:9px;}
+  .menu-item .mi{font-size:20px;}
+  .menu-item .mt{font-weight:700;font-size:14.5px;}
+  .menu-item .ms{font-size:11.5px;color:var(--muted);}
+
+  /* report */
+  .rtable{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px;}
+  .rtable th,.rtable td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:center;}
+  .rtable th{background:var(--brand-soft);color:var(--brand-deep);font-weight:800;font-size:12px;}
+  .rtable td:first-child,.rtable th:first-child{text-align:right;}
+  .rtable .num{direction:ltr;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .num-safe{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .rtable tr:last-child td{border-bottom:0;}
+
+  /* toast */
+  .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:10px 18px;border-radius:30px;font-size:13.5px;font-weight:700;
+    z-index:90;opacity:0;transition:.25s;pointer-events:none;max-width:90%;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .chip{display:inline-block;background:var(--brand-soft);color:var(--brand-deep);font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;}
+
+  @page{size:A5 portrait;margin:8mm;}
+  @media print{
+    .top,.bar,.search,.sec-title,.no-print,.scrim,.sheet,.toast{display:none!important;}
+    html,body{width:100%;background:#fff!important;font-size:10pt;}
+    .wrap{display:block!important;padding:0!important;max-width:none!important;margin:0!important;}
+    .stats{grid-template-columns:repeat(3,1fr);gap:4mm;margin-bottom:4mm;}
+    .stat{break-inside:avoid;border-radius:2mm;padding:2.5mm;}
+    .item{break-inside:avoid;border-radius:2mm;padding:2.5mm 3mm;margin-bottom:2mm;}
+    .item .nm{white-space:normal;overflow:visible;text-overflow:clip;}
+    .item .amount .q{font-size:16pt;}
+  }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1><span class="dot"></span> انبار پزشکی</h1>
+  <button class="menu-btn" id="menuBtn">☰</button>
+</div>
+
+<div class="wrap">
+  <div class="stats">
+    <div class="stat"><div class="n" id="stItems">۰</div><div class="l">قلم کالا</div></div>
+    <div class="stat"><div class="n" id="stLow">۰</div><div class="l">رو به اتمام</div></div>
+    <div class="stat"><div class="n" id="stPatients">۰</div><div class="l">بیمار این ماه</div></div>
+  </div>
+
+  <div class="search">
+    <input id="q" placeholder="جستجوی کالا…" autocomplete="off">
+  </div>
+
+  <div class="sec-title"><span>موجودی انبار <small class="reorder-hint">— برای جابه‌جایی، دستگیره را بکشید</small></span><span id="cntLbl" class="chip"></span></div>
+  <div id="list"></div>
+</div>
+
+<div class="bar">
+  <button class="primary" id="sessBtn"><span class="ic">💉</span>ثبت تزریق</button>
+  <button id="recvBtn"><span class="ic">📦</span>دریافت کالا</button>
+  <button id="addBtn"><span class="ic">＋</span>افزودن قلم</button>
+</div>
+
+<div class="scrim" id="scrim"></div>
+
+<!-- item add/edit -->
+<div class="sheet" id="itemSheet">
+  <div class="grab"></div>
+  <h2><span id="itemTitle">قلم جدید</span><span class="x" data-close>✕</span></h2>
+  <div class="field"><label>نام کالا</label><input id="fName" placeholder="مثلاً: سرنگ ۵ سی‌سی" autocomplete="off"></div>
+  <div class="row2">
+    <div class="field"><label>واحد</label><input id="fUnit" placeholder="عدد / ویال / بسته" autocomplete="off"></div>
+    <div class="field"><label>دستهٔ (اختیاری)</label><input id="fCat" placeholder="مصرفی / دارو…" autocomplete="off"></div>
+  </div>
+  <div class="row2">
+    <div class="field"><label id="fStockLbl">موجودی فعلی</label><input id="fStock" type="number" inputmode="numeric" placeholder="۰"></div>
+    <div class="field"><label>مصرف هر بیمار</label><input id="fPer" type="number" inputmode="decimal" placeholder="۰"><div class="hint">در هر تزریق برای هر بیمار چند تا مصرف می‌شود؟ صفر = دستی</div></div>
+  </div>
+  <div class="field"><label>حد هشدار کمبود</label><input id="fLow" type="number" inputmode="numeric" placeholder="۱۰"><div class="hint">وقتی موجودی کمتر یا برابر این عدد شد، هشدار می‌دهد.</div></div>
+  <button class="save-btn" id="itemSave">ذخیره</button>
+  <button class="del-btn" id="itemDel" style="display:none">حذف این قلم</button>
+</div>
+
+<!-- session -->
+<div class="sheet" id="sessSheet">
+  <div class="grab"></div>
+  <h2><span>ثبت تزریق روزانه</span><span class="x" data-close>✕</span></h2>
+  <div class="row3" style="margin-bottom:12px">
+    <div class="field" style="margin:0"><label>سال</label><select id="sY"></select></div>
+    <div class="field" style="margin:0"><label>ماه</label><select id="sM"></select></div>
+    <div class="field" style="margin:0"><label>روز</label><select id="sD"></select></div>
+  </div>
+  <div class="bignum">
+    <label>تعداد بیماران امروز</label>
+    <input id="sPat" type="number" inputmode="numeric" placeholder="۰" value="">
+  </div>
+  <div id="sNoItems" class="warnbox" style="display:none">هیچ قلمی «مصرف هر بیمار» ندارد. اول برای کالاها مصرف تعریف کن یا از حالت دستی استفاده کن.</div>
+  <div class="sec-title no-print"><span>این مقدارها کم می‌شود</span></div>
+  <div class="ptable" id="sPrev"></div>
+  <div id="sWarn"></div>
+  <div class="field" style="margin-top:12px"><label>توضیح (اختیاری)</label><input id="sNote" placeholder="مثلاً نوبت صبح" autocomplete="off"></div>
+  <button class="save-btn" id="sessSave">ثبت و کسر از انبار</button>
+</div>
+
+<!-- receive / out / adjust (generic move) -->
+<div class="sheet" id="moveSheet">
+  <div class="grab"></div>
+  <h2><span id="moveTitle">دریافت کالا</span><span class="x" data-close>✕</span></h2>
+  <div class="field" id="moveItemWrap"><label>کالا</label><select id="mItem"></select></div>
+  <div class="row3" style="margin-bottom:12px">
+    <div class="field" style="margin:0"><label>سال</label><select id="mY"></select></div>
+    <div class="field" style="margin:0"><label>ماه</label><select id="mM"></select></div>
+    <div class="field" style="margin:0"><label>روز</label><select id="mD"></select></div>
+  </div>
+  <div class="field"><label id="mQtyLbl">تعداد دریافتی</label><input id="mQty" type="number" inputmode="numeric" placeholder="۰"></div>
+  <div id="mAdjustHint" class="hint" style="display:none;margin:-8px 2px 10px"></div>
+  <div class="field"><label>توضیح (اختیاری)</label><input id="mNote" placeholder="فاکتور / دلیل" autocomplete="off"></div>
+  <button class="save-btn" id="moveSave">ثبت</button>
+</div>
+
+<!-- kardex -->
+<div class="sheet" id="kxSheet">
+  <div class="grab"></div>
+  <h2><span id="kxTitle">کاردکس</span><span class="x" data-close>✕</span></h2>
+  <div id="kxHead"></div>
+  <div class="bar" style="position:static;background:none;border:0;padding:0 0 12px;backdrop-filter:none;margin:0">
+    <button id="kxRecv" style="border:1px solid var(--line);background:#fff;color:var(--brand-deep);border-radius:11px;padding:11px 6px;flex:1;font-weight:700;font-size:12.5px;display:flex;flex-direction:column;gap:2px;align-items:center"><span style="font-size:16px">📦</span>دریافت</button>
+    <button id="kxOut" style="border:1px solid var(--line);background:#fff;color:var(--brand-deep);border-radius:11px;padding:11px 6px;flex:1;font-weight:700;font-size:12.5px;display:flex;flex-direction:column;gap:2px;align-items:center"><span style="font-size:16px">➖</span>مصرف دستی</button>
+    <button id="kxAdj" style="border:1px solid var(--line);background:#fff;color:var(--brand-deep);border-radius:11px;padding:11px 6px;flex:1;font-weight:700;font-size:12.5px;display:flex;flex-direction:column;gap:2px;align-items:center"><span style="font-size:16px">✎</span>اصلاح</button>
+    <button id="kxEdit" style="border:1px solid var(--line);background:#fff;color:var(--brand-deep);border-radius:11px;padding:11px 6px;flex:1;font-weight:700;font-size:12.5px;display:flex;flex-direction:column;gap:2px;align-items:center"><span style="font-size:16px">⚙️</span>ویرایش قلم</button>
+  </div>
+  <div class="sec-title"><span>گردش این کالا</span></div>
+  <div id="kxList"></div>
+</div>
+
+<!-- report -->
+<div class="sheet" id="repSheet">
+  <div class="grab"></div>
+  <h2><span>گزارش بازه‌ای</span><span class="x" data-close>✕</span></h2>
+  <div class="sec-title"><span>از تاریخ</span></div>
+  <div class="row3" style="margin-bottom:10px">
+    <div class="field" style="margin:0"><label>سال</label><select id="rfY"></select></div>
+    <div class="field" style="margin:0"><label>ماه</label><select id="rfM"></select></div>
+    <div class="field" style="margin:0"><label>روز</label><select id="rfD"></select></div>
+  </div>
+  <div class="sec-title"><span>تا تاریخ</span></div>
+  <div class="row3" style="margin-bottom:12px">
+    <div class="field" style="margin:0"><label>سال</label><select id="rtY"></select></div>
+    <div class="field" style="margin:0"><label>ماه</label><select id="rtM"></select></div>
+    <div class="field" style="margin:0"><label>روز</label><select id="rtD"></select></div>
+  </div>
+  <button class="save-btn" id="repRun">نمایش گزارش</button>
+  <div id="repOut" style="margin-top:14px"></div>
+</div>
+
+<!-- menu -->
+<div class="sheet" id="menuSheet">
+  <div class="grab"></div>
+  <h2><span>منو</span><span class="x" data-close>✕</span></h2>
+  <div class="menu-item" id="mnReport"><span class="mi">📊</span><div><div class="mt">گزارش بازه‌ای</div><div class="ms">مصرف و دریافت در یک بازهٔ زمانی</div></div></div>
+  <div class="menu-item" id="mnCsv"><span class="mi">📄</span><div><div class="mt">خروجی CSV موجودی</div><div class="ms">باز شدن در Excel</div></div></div>
+  <div class="menu-item" id="mnBackup"><span class="mi">💾</span><div><div class="mt">پشتیبان (فایل JSON)</div><div class="ms">ذخیرهٔ کامل داده‌ها</div></div></div>
+  <div class="menu-item" id="mnRestore"><span class="mi">📥</span><div><div class="mt">بازیابی از پشتیبان</div><div class="ms">جایگزینی داده‌های فعلی</div></div></div>
+  <div class="menu-item" id="mnPrint"><span class="mi">🖨️</span><div><div class="mt">چاپ فهرست موجودی</div><div class="ms">PDF / کاغذ</div></div></div>
+  <div class="menu-item" id="mnWipe" style="border-color:#DBC9C7"><span class="mi">🗑️</span><div><div class="mt" style="color:var(--danger)">صفر کردن همه</div><div class="ms">حذف کامل داده‌ها</div></div></div>
+</div>
+
+<input type="file" id="restoreIn" accept="application/json,.json" style="display:none">
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ Jalali date (jalaali algorithm) ============ */
+function div(a,b){return ~~(a/b);}
+function g2j(gy,gm,gd){
+  var g_d_m=[0,31,59,90,120,151,181,212,243,273,304,334];
+  var gy2=(gm>2)?(gy+1):gy;
+  var days=355666+(365*gy)+div(gy2+3,4)-div(gy2+99,100)+div(gy2+399,400)+gd+g_d_m[gm-1];
+  var jy=-1595+(33*div(days,12053));days%=12053;jy+=4*div(days,1461);days%=1461;
+  if(days>365){jy+=div(days-1,365);days=(days-1)%365;}
+  var jm,jd;
+  if(days<186){jm=1+div(days,31);jd=1+(days%31);}
+  else{jm=7+div(days-186,30);jd=1+((days-186)%30);}
+  return [jy,jm,jd];
+}
+function j2g(jy,jm,jd){
+  jy+=1595;var days=-355668+(365*jy)+(div(jy,33)*8)+div((jy%33)+3,4)+jd+((jm<7)?(jm-1)*31:((jm-7)*30)+186);
+  var gy=400*div(days,146097);days%=146097;
+  if(days>36524){days--;gy+=100*div(days,36524);days%=36524;if(days>=365)days++;}
+  gy+=4*div(days,1461);days%=1461;
+  if(days>365){gy+=div(days-1,365);days=(days-1)%365;}
+  var gd=days+1,sal_a=[0,31,((gy%4===0&&gy%100!==0)||(gy%400===0))?29:28,31,30,31,30,31,31,30,31,30,31];
+  var gm;for(gm=0;gm<13;gm++){var v=sal_a[gm];if(gd<=v)break;gd-=v;}
+  return [gy,gm,gd];
+}
+function todayJ(){var d=new Date();return g2j(d.getFullYear(),d.getMonth()+1,d.getDate());}
+function jKey(jy,jm,jd){var g=j2g(jy,jm,jd);return g[0]*10000+g[1]*100+g[2];} // gregorian sortable
+var MONTHS=['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
+function jMonthLen(jy,jm){if(jm<=6)return 31;if(jm<=11)return 30;var a=j2g(jy,1,1),b=j2g(jy+1,1,1);var days=(Date.UTC(b[0],b[1]-1,b[2])-Date.UTC(a[0],a[1]-1,a[2]))/86400000;return days===366?30:29;}
+
+/* ============ helpers ============ */
+function fa(n){return String(n).replace(/[0-9]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[+d];});}
+function en(s){return String(s==null?'':s).replace(/[۰-۹٠-٩]/g,function(d){return String('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩'.indexOf(d)%10);});}
+function group(n){var x=String(Math.abs(n));return x.replace(/\B(?=(\d{3})+(?!\d))/g,'،');}
+function fmt(n){var s;if(n%1!==0){s=group(Math.trunc(Math.abs(n)));var dec=Math.round(Math.abs(n%1)*100);if(dec)s+='٫'+String(dec).padStart(2,'0').replace(/0+$/,'');}else{s=group(Math.round(n));}return (n<0?'-':'')+fa(s);}
+function pnum(v){v=parseFloat(en(String(v)).replace(/[،,]/g,''));return isNaN(v)?0:v;}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+/* ============ persistence (IndexedDB + localStorage fallback) ============ */
+var DB,STORE='kv',DB_NAME='anbar_pezeshki',LS_KEY='anbar_pezeshki_state_v1',saveQueue=Promise.resolve();
+function normalizeState(v){
+  v=(v&&typeof v==='object')?v:{};
+  var seen={},items=[];
+  (Array.isArray(v.items)?v.items:[]).forEach(function(raw){
+    if(!raw||typeof raw!=='object')return;
+    var id=String(raw.id||uid());if(seen[id])id=uid();seen[id]=true;
+    var name=String(raw.name||'').trim();if(!name)return;
+    items.push({id:id,name:name,unit:String(raw.unit||'').trim(),cat:String(raw.cat||'').trim(),per:Math.max(0,pnum(raw.per)),lowAt:Math.max(0,pnum(raw.lowAt))});
+  });
+  var valid={};items.forEach(function(it){valid[it.id]=true;});
+  var moves=(Array.isArray(v.moves)?v.moves:[]).filter(function(m){return m&&valid[String(m.itemId)]&&isFinite(Number(m.delta));}).map(function(m){
+    return {id:String(m.id||uid()),itemId:String(m.itemId),delta:Number(m.delta),kind:String(m.kind||'adjust'),sid:m.sid?String(m.sid):undefined,patients:Math.max(0,pnum(m.patients)),y:pnum(m.y),m:pnum(m.m),d:pnum(m.d),gkey:pnum(m.gkey),ts:pnum(m.ts)||Date.now(),note:String(m.note||'')};
+  });
+  var sessions=(Array.isArray(v.sessions)?v.sessions:[]).filter(function(se){return se&&pnum(se.patients)>=0;}).map(function(se){
+    return {id:String(se.id||uid()),patients:Math.max(0,pnum(se.patients)),y:pnum(se.y),m:pnum(se.m),d:pnum(se.d),gkey:pnum(se.gkey),ts:pnum(se.ts)||Date.now(),note:String(se.note||''),lines:Math.max(0,pnum(se.lines))};
+  });
+  return {items:items,moves:moves,sessions:sessions,settings:(v.settings&&typeof v.settings==='object')?v.settings:{}};
+}
+function openDB(){return new Promise(function(res){
+  if(!('indexedDB' in window))return res(false);
+  var r=indexedDB.open(DB_NAME,1);
+  r.onupgradeneeded=function(){if(!r.result.objectStoreNames.contains(STORE))r.result.createObjectStore(STORE);};
+  r.onsuccess=function(){DB=r.result;DB.onversionchange=function(){DB.close();};res(true);};
+  r.onerror=function(){res(false);};r.onblocked=function(){res(false);};
+});}
+function dbGet(k){return new Promise(function(res){if(!DB)return res(null);try{var t=DB.transaction(STORE).objectStore(STORE).get(k);t.onsuccess=function(){res(t.result);};t.onerror=function(){res(null);};}catch(e){res(null);}});}
+function dbSet(k,v){return new Promise(function(res){if(!DB)return res(false);try{var t=DB.transaction(STORE,'readwrite');t.objectStore(STORE).put(v,k);t.oncomplete=function(){res(true);};t.onerror=t.onabort=function(){res(false);};}catch(e){res(false);}});}
+var state={items:[],moves:[],sessions:[],settings:{}};
+function localRead(){try{return JSON.parse(localStorage.getItem(LS_KEY)||'null');}catch(e){return null;}}
+function localWrite(v){try{localStorage.setItem(LS_KEY,JSON.stringify(v));return true;}catch(e){return false;}}
+function persist(){
+  var snapshot=normalizeState(JSON.parse(JSON.stringify(state)));
+  saveQueue=saveQueue.then(function(){localWrite(snapshot);return dbSet('state',snapshot);}).catch(function(){localWrite(snapshot);});
+  return saveQueue;
+}
+function load(){return dbGet('state').then(function(s){state=normalizeState(s||localRead());if(s)localWrite(state);});}
+window.addEventListener('pagehide',function(){localWrite(state);});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')localWrite(state);});
+
+/* ============ stock computation ============ */
+function stockMap(){
+  var m={};state.items.forEach(function(it){m[it.id]=0;});
+  state.moves.forEach(function(mv){if(m[mv.itemId]==null)m[mv.itemId]=0;m[mv.itemId]+=mv.delta;});
+  return m;
+}
+function stockOf(id){var s=0;state.moves.forEach(function(mv){if(mv.itemId===id)s+=mv.delta;});return s;}
+
+/* ============ rendering ============ */
+var curQ='';
+function render(){
+  var sm=stockMap();
+  var items=state.items.slice();
+  // stats
+  document.getElementById('stItems').textContent=fa(items.length);
+  var low=items.filter(function(it){return sm[it.id]<=(it.lowAt||0);}).length;
+  var lowEl=document.getElementById('stLow');lowEl.textContent=fa(low);lowEl.className='n'+(low?' danger':'');
+  var tj=todayJ();var monKey0=jKey(tj[0],tj[1],1);var monKeyEnd=jKey(tj[0],tj[1],jMonthLen(tj[0],tj[1]));
+  var pat=state.sessions.reduce(function(s,se){return (se.gkey>=monKey0&&se.gkey<=monKeyEnd)?s+se.patients:s;},0);
+  document.getElementById('stPatients').textContent=fa(pat);
+
+  var q=curQ.trim();
+  var shown=items.filter(function(it){return !q||(it.name||'').includes(q)||(it.cat||'').includes(q);});
+  document.getElementById('cntLbl').textContent=fa(shown.length)+' قلم';
+
+  var el=document.getElementById('list');
+  if(!items.length){el.innerHTML='<div class="empty"><div class="big">📦</div>هنوز کالایی ثبت نشده.<br>با دکمهٔ «افزودن قلم» شروع کن.</div>';return;}
+  if(!shown.length){el.innerHTML='<div class="empty">موردی برای «'+esc(q)+'» پیدا نشد.</div>';return;}
+  // ترتیب اقلام مطابق جابه‌جایی دستی کاربر حفظ می‌شود.
+  el.innerHTML=shown.map(function(it){
+    var s=sm[it.id];var isLow=s<=(it.lowAt||0);var isOut=s<=0;
+    var badge=isOut?'<span class="badge-low badge-out">تمام شد</span>':(isLow?'<span class="badge-low">رو به اتمام</span>':'');
+    var per=(it.per>0)?'<span class="meta">هر بیمار: <b>'+fmt(it.per)+'</b> '+esc(it.unit||'')+'</span>':'<span class="meta">مصرف دستی</span>';
+    return '<div class="item" data-id="'+it.id+'">'+
+      (!q?'<div class="drag-handle" data-drag="'+it.id+'" title="برای جابه‌جایی بکشید" aria-label="جابه‌جایی قلم">⋮⋮</div>':'')+
+      '<div class="info"><div class="nm">'+esc(it.name)+(it.cat?' <span class="chip">'+esc(it.cat)+'</span>':'')+'</div>'+per+
+      (badge?'<div>'+badge+'</div>':'')+'</div>'+
+      '<div class="amount"><div class="q'+(isLow?' low':'')+'">'+fmt(s)+'</div><div class="u">'+esc(it.unit||'موجودی')+'</div></div></div>';
+  }).join('');
+  el.querySelectorAll('.item').forEach(function(c){c.onclick=function(e){if(e.target.closest('[data-drag]')||c.classList.contains('dragging'))return;openKardex(c.dataset.id);};});
+  if(!q)initItemReorder(el);
+}
+
+/* جابه‌جایی لمسی/ماوس اقلام و ذخیره دائمی ترتیب */
+function initItemReorder(list){
+  list.querySelectorAll('[data-drag]').forEach(function(handle){
+    handle.addEventListener('pointerdown',function(e){
+      if(e.button!=null&&e.button!==0)return;
+      var card=handle.closest('.item');if(!card)return;
+      e.preventDefault();handle.setPointerCapture&&handle.setPointerCapture(e.pointerId);
+      card.classList.add('dragging');document.body.classList.add('reordering');
+      var moved=false,startX=e.clientX,startY=e.clientY,lastScroll=0;
+      function move(ev){
+        ev.preventDefault();
+        if(!moved&&Math.hypot(ev.clientX-startX,ev.clientY-startY)<6)return;
+        moved=true;
+        var edge=72,now=Date.now();
+        if(now-lastScroll>28){if(ev.clientY<edge)window.scrollBy(0,-18);else if(ev.clientY>window.innerHeight-edge)window.scrollBy(0,18);lastScroll=now;}
+        var under=document.elementFromPoint(ev.clientX,ev.clientY);
+        var target=under&&under.closest?under.closest('#list .item'):null;
+        list.querySelectorAll('.drag-over').forEach(function(x){x.classList.remove('drag-over');});
+        if(!target||target===card)return;target.classList.add('drag-over');
+        var r=target.getBoundingClientRect();
+        if(ev.clientY<r.top+r.height/2)list.insertBefore(card,target);else list.insertBefore(card,target.nextSibling);
+      }
+      function end(){
+        window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);window.removeEventListener('pointercancel',end);
+        card.classList.remove('dragging');document.body.classList.remove('reordering');
+        list.querySelectorAll('.drag-over').forEach(function(x){x.classList.remove('drag-over');});
+        if(!moved)return;
+        var ids=Array.from(list.querySelectorAll('.item')).map(function(x){return x.dataset.id;});
+        var byId={};state.items.forEach(function(it){byId[it.id]=it;});
+        var ordered=ids.map(function(id){return byId[id];}).filter(Boolean);
+        state.items.forEach(function(it){if(ids.indexOf(it.id)<0)ordered.push(it);});
+        state.items=ordered;persist().then(function(){toast('ترتیب اقلام ذخیره شد ✓');render();});
+      }
+      window.addEventListener('pointermove',move,{passive:false});window.addEventListener('pointerup',end,{once:true});window.addEventListener('pointercancel',end,{once:true});
+    });
+  });
+}
+
+/* ============ sheets + unified Android Back navigation ============ */
+var navStack=[],exitArmed=false,exitTimer=null;
+function applyNav(){
+  document.querySelectorAll('.sheet').forEach(function(s){s.classList.remove('show');});
+  var id=navStack[navStack.length-1];
+  document.getElementById('scrim').classList.toggle('show',!!id);
+  if(id){var el=document.getElementById(id);if(el){el.classList.add('show');el.scrollTop=0;}}
+}
+function writeRoute(stack,replace){
+  navStack=stack.slice();
+  var st={anbarApp:true,stack:navStack};
+  if(replace)history.replaceState(st,'');else history.pushState(st,'');
+  applyNav();
+}
+function openSheet(id,mode){
+  var next;
+  if(mode==='replace'&&navStack.length)next=navStack.slice(0,-1).concat(id);
+  else if(navStack[navStack.length-1]===id)next=navStack.slice();
+  else next=navStack.concat(id);
+  writeRoute(next,false);
+}
+function hideAllSheets(){navStack=[];applyNav();}
+function closeSheets(){if(navStack.length)history.back();}
+function goHome(){if(navStack.length)writeRoute([],false);else applyNav();}
+function initHistory(){
+  history.replaceState({anbarApp:true,stack:[]},'');
+  history.pushState({anbarApp:true,stack:[],guard:true},'');
+}
+window.addEventListener('popstate',function(e){
+  var st=e.state;
+  if(st&&st.anbarApp){
+    navStack=Array.isArray(st.stack)?st.stack.slice():[];applyNav();
+    if(!navStack.length&&!st.guard){
+      if(exitArmed){exitArmed=false;history.back();return;}
+      exitArmed=true;toast('برای خروج، دوباره دکمه برگشت را بزن');
+      clearTimeout(exitTimer);exitTimer=setTimeout(function(){exitArmed=false;},2200);
+      history.pushState({anbarApp:true,stack:[],guard:true},'');
+    }
+  }
+});
+document.getElementById('scrim').addEventListener('click',closeSheets);
+document.querySelectorAll('[data-close]').forEach(function(b){b.addEventListener('click',closeSheets);});
+
+function toast(t){var el=document.getElementById('toast');el.textContent=t;el.classList.add('show');clearTimeout(el._t);el._t=setTimeout(function(){el.classList.remove('show');},2200);}
+
+/* date selects */
+function fillDateSelects(yId,mId,dId,jy,jm,jd){
+  var Y=document.getElementById(yId),M=document.getElementById(mId),D=document.getElementById(dId);
+  var ty=todayJ()[0];
+  Y.innerHTML='';for(var y=ty-3;y<=ty+1;y++)Y.innerHTML+='<option value="'+y+'"'+(y===jy?' selected':'')+'>'+fa(y)+'</option>';
+  M.innerHTML='';MONTHS.forEach(function(nm,i){M.innerHTML+='<option value="'+(i+1)+'"'+((i+1)===jm?' selected':'')+'>'+nm+'</option>';});
+  function fillDays(){var sy=+Y.value,smn=+M.value,len=jMonthLen(sy,smn),cur=+D.value||jd;D.innerHTML='';for(var d=1;d<=len;d++)D.innerHTML+='<option value="'+d+'"'+(d===Math.min(cur,len)?' selected':'')+'>'+fa(d)+'</option>';}
+  fillDays();M.onchange=fillDays;Y.onchange=fillDays;
+}
+function readDate(yId,mId,dId){return {y:+document.getElementById(yId).value,m:+document.getElementById(mId).value,d:+document.getElementById(dId).value};}
+
+/* ---- item add/edit ---- */
+var editItemId=null;
+function openItem(id){
+  editItemId=id||null;
+  var t=document.getElementById('itemTitle');
+  var stockLbl=document.getElementById('fStockLbl');
+  if(id){
+    var it=state.items.find(function(x){return x.id===id;});
+    t.textContent='ویرایش قلم';
+    document.getElementById('fName').value=it.name||'';
+    document.getElementById('fUnit').value=it.unit||'';
+    document.getElementById('fCat').value=it.cat||'';
+    document.getElementById('fStock').value=stockOf(id);
+    document.getElementById('fStock').disabled=true;stockLbl.textContent='موجودی فعلی (از طریق «اصلاح» تغییر بده)';
+    document.getElementById('fPer').value=it.per||'';
+    document.getElementById('fLow').value=it.lowAt||'';
+    document.getElementById('itemDel').style.display='block';
+  }else{
+    t.textContent='قلم جدید';
+    ['fName','fUnit','fCat','fStock','fPer','fLow'].forEach(function(k){document.getElementById(k).value='';});
+    document.getElementById('fStock').disabled=false;stockLbl.textContent='موجودی اولیه';
+    document.getElementById('itemDel').style.display='none';
+  }
+  openSheet('itemSheet');
+}
+document.getElementById('addBtn').onclick=function(){openItem(null);};
+document.getElementById('itemSave').onclick=function(){
+  var name=document.getElementById('fName').value.trim();
+  if(!name)return toast('نام کالا را وارد کن');
+  var unit=document.getElementById('fUnit').value.trim();
+  var cat=document.getElementById('fCat').value.trim();
+  var per=pnum(document.getElementById('fPer').value);
+  var lowAt=pnum(document.getElementById('fLow').value);
+  if(editItemId){
+    var it=state.items.find(function(x){return x.id===editItemId;});
+    it.name=name;it.unit=unit;it.cat=cat;it.per=per;it.lowAt=lowAt;
+  }else{
+    var stock=pnum(document.getElementById('fStock').value);
+    var id=uid();
+    state.items.push({id:id,name:name,unit:unit,cat:cat,per:per,lowAt:lowAt});
+    if(stock!==0){var tj=todayJ();state.moves.push({id:uid(),itemId:id,delta:stock,kind:'open',y:tj[0],m:tj[1],d:tj[2],gkey:jKey(tj[0],tj[1],tj[2]),ts:Date.now(),note:'موجودی اولیه'});}
+  }
+  persist().then(function(){render();closeSheets();toast('ذخیره شد ✓');});
+};
+document.getElementById('itemDel').onclick=function(){
+  if(!editItemId)return;
+  if(!confirm('این قلم و همهٔ گردش آن حذف شود؟'))return;
+  state.items=state.items.filter(function(x){return x.id!==editItemId;});
+  state.moves=state.moves.filter(function(m){return m.itemId!==editItemId;});
+  persist().then(function(){render();closeSheets();toast('حذف شد');});
+};
+
+/* ---- session (auto deduct) ---- */
+var sessExclude={};
+function openSession(){
+  sessExclude={};
+  var tj=todayJ();fillDateSelects('sY','sM','sD',tj[0],tj[1],tj[2]);
+  document.getElementById('sPat').value='';document.getElementById('sNote').value='';
+  var has=state.items.some(function(it){return it.per>0;});
+  document.getElementById('sNoItems').style.display=has?'none':'block';
+  renderSessPreview();
+  openSheet('sessSheet');
+  setTimeout(function(){document.getElementById('sPat').focus();},250);
+}
+function sessItems(){return state.items.filter(function(it){return it.per>0;});}
+function renderSessPreview(){
+  var pat=pnum(document.getElementById('sPat').value);
+  var sm=stockMap();
+  var its=sessItems();
+  var box=document.getElementById('sPrev');
+  box.innerHTML=its.map(function(it){
+    var need=it.per*pat;var off=sessExclude[it.id];
+    var after=sm[it.id]-(off?0:need);var bad=after<0;
+    return '<div class="prow'+(off?' off':'')+'" data-id="'+it.id+'">'+
+      '<div class="tg" data-tg="'+it.id+'">✓</div>'+
+      '<div class="pn">'+esc(it.name)+'<small>هر بیمار '+fmt(it.per)+' '+esc(it.unit||'')+' · موجودی '+fmt(sm[it.id])+'</small></div>'+
+      '<div class="pq"><div class="minus">−'+fmt(need)+'</div><div class="after'+(bad?' bad':'')+'">باقی: '+fmt(after)+'</div></div>'+
+      '</div>';
+  }).join('')||'<div style="padding:14px;text-align:center;color:var(--muted)">قلمی با مصرف هر بیمار نداری</div>';
+  box.querySelectorAll('[data-tg]').forEach(function(t){t.onclick=function(){var id=t.dataset.tg;sessExclude[id]=!sessExclude[id];renderSessPreview();};});
+  // warnings
+  var w=document.getElementById('sWarn');var bads=[];
+  its.forEach(function(it){if(sessExclude[it.id])return;if(sm[it.id]-it.per*pat<0)bads.push(it.name);});
+  if(pat>0&&bads.length)w.innerHTML='<div class="warnbox">⚠️ موجودی این اقلام کافی نیست و منفی می‌شود: '+esc(bads.join('، '))+'. می‌توانی ثبت کنی ولی بهتر است اول دریافت بزنی.</div>';
+  else if(pat>0)w.innerHTML='<div class="okbox">✓ موجودی برای همهٔ اقلام کافی است.</div>';
+  else w.innerHTML='';
+}
+document.getElementById('sPat').oninput=renderSessPreview;
+document.getElementById('sessBtn').onclick=openSession;
+document.getElementById('sessSave').onclick=function(){
+  var pat=pnum(document.getElementById('sPat').value);
+  if(pat<=0)return toast('تعداد بیمار را وارد کن');
+  var dt=readDate('sY','sM','sD');var gkey=jKey(dt.y,dt.m,dt.d);
+  var note=document.getElementById('sNote').value.trim();
+  var its=sessItems().filter(function(it){return !sessExclude[it.id];});
+  if(!its.length)return toast('هیچ قلمی برای کسر انتخاب نشده');
+  var sid=uid();var ts=Date.now();
+  its.forEach(function(it){
+    var need=it.per*pat;
+    state.moves.push({id:uid(),itemId:it.id,delta:-need,kind:'session',sid:sid,patients:pat,y:dt.y,m:dt.m,d:dt.d,gkey:gkey,ts:ts,note:note});
+  });
+  state.sessions.push({id:sid,patients:pat,y:dt.y,m:dt.m,d:dt.d,gkey:gkey,ts:ts,note:note,lines:its.length});
+  persist().then(function(){render();closeSheets();toast('ثبت شد — موجودی به‌روزرسانی شد ✓');});
+};
+
+/* ---- generic move: receive / out / adjust ---- */
+var moveKind='in',moveItemId=null;
+function openMove(kind,itemId){
+  moveKind=kind;moveItemId=itemId||null;
+  var titles={in:'دریافت کالا',out:'مصرف دستی',adjust:'اصلاح موجودی'};
+  document.getElementById('moveTitle').textContent=titles[kind];
+  var qtyLbl={in:'تعداد دریافتی',out:'تعداد مصرف‌شده',adjust:'موجودی صحیح (عدد نهایی)'};
+  document.getElementById('mQtyLbl').textContent=qtyLbl[kind];
+  var sel=document.getElementById('mItem');var wrap=document.getElementById('moveItemWrap');
+  if(itemId){wrap.style.display='none';}
+  else{wrap.style.display='block';sel.innerHTML=state.items.map(function(it){return '<option value="'+it.id+'">'+esc(it.name)+'</option>';}).join('');}
+  var tj=todayJ();fillDateSelects('mY','mM','mD',tj[0],tj[1],tj[2]);
+  document.getElementById('mQty').value='';document.getElementById('mNote').value='';
+  var ah=document.getElementById('mAdjustHint');
+  if(kind==='adjust'&&itemId){var cur=stockOf(itemId);ah.style.display='block';ah.textContent='موجودی فعلی: '+fmt(cur)+' — عدد نهایی صحیح را وارد کن، تفاوت اصلاح می‌شود.';}
+  else ah.style.display='none';
+  openSheet('moveSheet');
+}
+document.getElementById('recvBtn').onclick=function(){if(!state.items.length)return toast('اول یک قلم اضافه کن');openMove('in',null);};
+document.getElementById('moveSave').onclick=function(){
+  var id=moveItemId||document.getElementById('mItem').value;
+  if(!id)return toast('کالا را انتخاب کن');
+  var qty=pnum(document.getElementById('mQty').value);
+  var dt=readDate('mY','mM','mD');var gkey=jKey(dt.y,dt.m,dt.d);
+  var note=document.getElementById('mNote').value.trim();
+  var delta;
+  if(moveKind==='in')delta=Math.abs(qty);
+  else if(moveKind==='out')delta=-Math.abs(qty);
+  else{var cur=stockOf(id);delta=qty-cur;} // adjust to final value
+  if(delta===0)return toast('تغییری وارد نشد');
+  state.moves.push({id:uid(),itemId:id,delta:delta,kind:moveKind,y:dt.y,m:dt.m,d:dt.d,gkey:gkey,ts:Date.now(),note:note});
+  persist().then(function(){render();if(moveItemId)renderKardex(moveItemId);closeSheets();var msg=moveKind==='in'?'دریافت ثبت شد ✓':(moveKind==='out'?'مصرف ثبت شد ✓':'موجودی اصلاح شد ✓');toast(msg);});
+};
+
+/* ---- kardex ---- */
+var kxId=null;
+var KIND={open:{t:'موجودی اولیه',ic:'🟢',bg:'#F1F2F3'},in:{t:'دریافت',ic:'📦',bg:'#F1F2F3'},out:{t:'مصرف دستی',ic:'➖',bg:'#F3E9E7'},session:{t:'تزریق',ic:'💉',bg:'#F3E9E7'},adjust:{t:'اصلاح',ic:'✎',bg:'#F1F2F3'}};
+function openKardex(id){kxId=id;renderKardex(id);openSheet('kxSheet');}
+function renderKardex(id){
+  var it=state.items.find(function(x){return x.id===id;});if(!it)return;
+  document.getElementById('kxTitle').textContent=it.name;
+  var s=stockOf(id);var isLow=s<=(it.lowAt||0);
+  document.getElementById('kxHead').innerHTML='<div class="item" style="margin-bottom:12px"><div class="info"><div class="meta">'+(it.per>0?('هر بیمار '+fmt(it.per)+' '+esc(it.unit||'')):'مصرف دستی')+' · حد هشدار '+fmt(it.lowAt||0)+'</div></div><div class="amount"><div class="q'+(isLow?' low':'')+'">'+fmt(s)+'</div><div class="u">'+esc(it.unit||'موجودی')+'</div></div></div>';
+  var mv=state.moves.filter(function(m){return m.itemId===id;}).slice().sort(function(a,b){return a.gkey-b.gkey||a.ts-b.ts;});
+  var bal=0;var rows=mv.map(function(m){bal+=m.delta;var k=KIND[m.kind]||{t:m.kind,ic:'•',bg:'#ECEEEF'};
+    var lbl=k.t+(m.kind==='session'&&m.patients?(' ('+fa(m.patients)+' بیمار)'):'');
+    return {html:'<div class="kx"><div class="kic" style="background:'+k.bg+'">'+k.ic+'</div>'+
+      '<div class="kinfo"><div class="kt">'+lbl+'</div><div class="kd">'+fa(m.y)+'/'+fa(String(m.m).padStart(2,'0'))+'/'+fa(String(m.d).padStart(2,'0'))+(m.note?' · '+esc(m.note):'')+'</div></div>'+
+      '<div class="kq '+(m.delta>=0?'pos':'neg')+'">'+(m.delta>=0?'+':'−')+fmt(Math.abs(m.delta))+'<span class="bal">مانده '+fmt(bal)+'</span></div></div>',ts:m.ts};
+  });
+  rows.reverse();
+  document.getElementById('kxList').innerHTML=rows.length?rows.map(function(r){return r.html;}).join(''):'<div class="empty" style="padding:20px">هنوز گردشی ثبت نشده</div>';
+}
+document.getElementById('kxRecv').onclick=function(){openMove('in',kxId);};
+document.getElementById('kxOut').onclick=function(){openMove('out',kxId);};
+document.getElementById('kxAdj').onclick=function(){openMove('adjust',kxId);};
+document.getElementById('kxEdit').onclick=function(){openItem(kxId);};
+
+/* ---- report ---- */
+function openReport(fromMenu){
+  var tj=todayJ();
+  fillDateSelects('rfY','rfM','rfD',tj[0],tj[1],1);
+  fillDateSelects('rtY','rtM','rtD',tj[0],tj[1],tj[2]);
+  document.getElementById('repOut').innerHTML='';
+  openSheet('repSheet',fromMenu?'replace':null);
+}
+document.getElementById('repRun').onclick=function(){
+  var f=readDate('rfY','rfM','rfD'),t=readDate('rtY','rtM','rtD');
+  var k1=jKey(f.y,f.m,f.d),k2=jKey(t.y,t.m,t.d);
+  if(k1>k2){var tmp=k1;k1=k2;k2=tmp;}
+  var sm=stockMap();
+  var per={};state.items.forEach(function(it){per[it.id]={recv:0,cons:0,adj:0};});
+  state.moves.forEach(function(m){if(m.gkey<k1||m.gkey>k2)return;if(!per[m.itemId])return;
+    if(m.kind==='in'||m.kind==='open')per[m.itemId].recv+=m.delta;
+    else if(m.kind==='out'||m.kind==='session')per[m.itemId].cons+=-m.delta;
+    else if(m.kind==='adjust')per[m.itemId].adj+=m.delta;});
+  var pat=state.sessions.reduce(function(s,se){return(se.gkey>=k1&&se.gkey<=k2)?s+se.patients:s;},0);
+  var sess=state.sessions.filter(function(se){return se.gkey>=k1&&se.gkey<=k2;}).length;
+  var rows=state.items.map(function(it){var p=per[it.id];
+    return '<tr><td>'+esc(it.name)+'</td><td class="num">'+fmt(p.recv)+'</td><td class="num">'+fmt(p.cons)+'</td><td class="num">'+(p.adj?(p.adj>0?'+':'−')+fmt(Math.abs(p.adj)):'۰')+'</td><td class="num">'+fmt(sm[it.id])+'</td></tr>';
+  }).join('');
+  document.getElementById('repOut').innerHTML=
+    '<div class="stats" style="margin-bottom:12px"><div class="stat"><div class="n">'+fa(pat)+'</div><div class="l">کل بیماران</div></div>'+
+    '<div class="stat"><div class="n">'+fa(sess)+'</div><div class="l">روز/نوبت تزریق</div></div>'+
+    '<div class="stat"><div class="n">'+fa(state.items.length)+'</div><div class="l">قلم</div></div></div>'+
+    '<div style="overflow:auto"><table class="rtable"><thead><tr><th>کالا</th><th>دریافت</th><th>مصرف</th><th>اصلاح</th><th>موجودی فعلی</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+    '<div class="hint" style="margin-top:8px">بازه: '+fa(f.y)+'/'+fa(f.m)+'/'+fa(f.d)+' تا '+fa(t.y)+'/'+fa(t.m)+'/'+fa(t.d)+'</div>';
+};
+
+/* ---- menu actions ---- */
+document.getElementById('menuBtn').onclick=function(){openSheet('menuSheet');};
+document.getElementById('mnReport').onclick=function(){openReport(true);};
+document.getElementById('mnPrint').onclick=function(){goHome();setTimeout(function(){window.print();},250);};
+document.getElementById('mnCsv').onclick=function(){
+  var sm=stockMap();
+  var rows=[['نام','دسته','واحد','موجودی','مصرف هر بیمار','حد هشدار']];
+  state.items.forEach(function(it){rows.push([it.name,it.cat||'',it.unit||'',sm[it.id],it.per||0,it.lowAt||0]);});
+  var csv='\ufeff'+rows.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(',');}).join('\r\n');
+  var t=todayJ();dl(new Blob([csv],{type:'text/csv'}),'موجودی-انبار-'+t[0]+'-'+t[1]+'-'+t[2]+'.csv');
+  toast('فایل CSV ساخته شد');
+};
+document.getElementById('mnBackup').onclick=function(){
+  var blob=new Blob([JSON.stringify(state)],{type:'application/json'});
+  var t=todayJ();dl(blob,'پشتیبان-انبار-'+t[0]+'-'+t[1]+'-'+t[2]+'.json');toast('پشتیبان ذخیره شد');
+};
+document.getElementById('mnRestore').onclick=function(){document.getElementById('restoreIn').click();};
+document.getElementById('restoreIn').onchange=function(e){
+  var f=e.target.files[0];if(!f)return;var r=new FileReader();
+  r.onload=function(){try{var d=JSON.parse(r.result);if(!d.items)throw 0;
+    if(!confirm('داده‌های فعلی با فایل پشتیبان جایگزین شود؟'))return;
+    state=normalizeState(d);
+    persist().then(function(){render();closeSheets();toast('بازیابی شد ✓');});
+  }catch(err){toast('فایل معتبر نیست');}};
+  r.readAsText(f);e.target.value='';
+};
+document.getElementById('mnWipe').onclick=function(){
+  if(!confirm('همهٔ کالاها و گردش‌ها برای همیشه حذف شوند؟'))return;
+  if(!confirm('مطمئنی؟ این کار برگشت‌پذیر نیست.'))return;
+  state={items:[],moves:[],sessions:[],settings:{}};
+  persist().then(function(){render();closeSheets();toast('همه چیز پاک شد');});
+};
+function dl(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},1000);}
+
+/* search */
+document.getElementById('q').addEventListener('input',function(e){curQ=e.target.value;render();});
+
+window.addEventListener('error',function(e){console.error(e.error||e.message);});
+window.addEventListener('unhandledrejection',function(e){console.error(e.reason);});
+
+/* boot */
+initHistory();
+openDB().then(load).then(function(){render();}).catch(function(){state=normalizeState(localRead());render();toast('ذخیره‌سازی پشتیبان فعال شد');});
+if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').then(function(reg){reg.update().catch(function(){});}).catch(function(){});});}
+</script>
+</body>
+</html>
