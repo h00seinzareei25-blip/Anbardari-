@@ -1,0 +1,17 @@
+{
+  "appId": "com.anbarpezeshki.app",
+  "appName": "انبار پزشکی",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 300,
+      "backgroundColor": "#EEF0F2",
+      "showSpinner": false
+    }
+  }
+}
