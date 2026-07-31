@@ -241,9 +241,12 @@
   .pie-leg-item{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;}
   .pie-dot{width:14px;height:14px;border-radius:4px;flex:0 0 14px;}
 
-  /* unit mode buttons */
-  .unit-mode-btn{cursor:pointer;transition:all .15s;}
-  .unit-mode-btn:active{opacity:.75;}
+  /* unit chips in item form */
+  .unit-chip{display:inline-block;padding:5px 13px;border-radius:20px;font-size:13px;font-weight:700;border:1.5px solid var(--line);background:var(--card);color:var(--muted);cursor:pointer;transition:all .15s;}
+  .unit-chip:active,.unit-chip.selected{background:var(--brand-deep);color:#fff;border-color:var(--brand-deep);}
+  @media(prefers-color-scheme:dark){.unit-chip:active,.unit-chip.selected{background:var(--brand);color:var(--bg);border-color:var(--brand);}}
+  details>summary::-webkit-details-marker{display:none;}
+  details[open] .pack-arrow{transform:rotate(90deg);}
 
   /* inline dose override */
   .dose-edit{background:var(--brand-soft);border:1.5px solid var(--brand);border-radius:10px;padding:8px 10px;margin-top:6px;display:flex;align-items:center;gap:8px;}
@@ -308,33 +311,74 @@
 <div class="sheet" id="itemSheet">
   <div class="grab"></div>
   <h2><span id="itemTitle">قلم جدید</span><span class="x" data-close>✕</span></h2>
-  <div class="field"><label>نام کالا</label><input id="fName" placeholder="مثلاً: سرنگ ۵ سی‌سی" autocomplete="off"></div>
-  <div class="row2">
-    <div class="field"><label>واحد</label><input id="fUnit" placeholder="عدد / ویال / بسته" autocomplete="off"></div>
-    <div class="field"><label>دستهٔ (اختیاری)</label><input id="fCat" placeholder="مصرفی / دارو…" autocomplete="off"></div>
-  </div>
-  <div style="background:var(--brand-soft);border-radius:13px;padding:12px;margin-bottom:13px">
-    <div style="font-size:12px;font-weight:800;color:var(--brand-deep);margin-bottom:6px">📐 نحوه شمارش موجودی</div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <button type="button" id="unitModeCount" class="unit-mode-btn active" style="flex:1;padding:9px 4px;border-radius:10px;font-size:12.5px;font-weight:800;border:2px solid var(--brand-deep);background:var(--brand-deep);color:#fff">🔢 تعداد (عدد)</button>
-      <button type="button" id="unitModeWeight" class="unit-mode-btn" style="flex:1;padding:9px 4px;border-radius:10px;font-size:12.5px;font-weight:800;border:2px solid var(--line);background:var(--card);color:var(--muted)">⚖️ وزن (گرم/mg)</button>
-      <button type="button" id="unitModeVolume" class="unit-mode-btn" style="flex:1;padding:9px 4px;border-radius:10px;font-size:12.5px;font-weight:800;border:2px solid var(--line);background:var(--card);color:var(--muted)">💧 حجم (ml/cc)</button>
-    </div>
-    <div id="unitModeHint" class="hint" style="margin-bottom:0"></div>
-  </div>
-  <div class="row2">
-    <div class="field"><label id="fStockLbl">موجودی کل فعلی</label><input id="fStock" type="number" inputmode="decimal" step="any" placeholder="۰"><div class="hint" id="fStockHint"></div></div>
-    <div class="field"><label id="fPerLbl">مصرف هر بیمار</label><input id="fPer" type="number" inputmode="decimal" step="any" placeholder="۰"><div class="hint" id="fPerHint">صفر = ثبت دستی</div></div>
-  </div>
-  <div class="field"><label>حد هشدار کمبود</label><input id="fLow" type="number" inputmode="decimal" step="any" placeholder="۰"><div class="hint" id="fLowHint">وقتی موجودی به این عدد رسید، هشدار می‌دهد.</div></div>
-  <div id="fPackSection" style="display:none;background:var(--brand-soft);border-radius:13px;padding:12px;margin-bottom:13px">
-    <div style="font-size:12px;font-weight:800;color:var(--brand-deep);margin-bottom:6px">📦 معادل بسته‌بندی (اختیاری)</div>
-    <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px" id="fPackDesc"></div>
-    <div class="row2">
-      <div class="field" style="margin:0"><label id="fPackSizeLbl">مقدار در هر بسته</label><input id="fPackSize" type="number" inputmode="decimal" step="any" placeholder=""><div class="hint" id="fPackSizeHint"></div></div>
-      <div class="field" style="margin:0"><label>نام بسته</label><input id="fPackUnit" placeholder="ویال / رول / جعبه" autocomplete="off"></div>
+
+  <!-- نام و دسته -->
+  <div class="field"><label>نام کالا</label><input id="fName" placeholder="مثلاً: لیدوکایین / سرنگ / پنبه" autocomplete="off"></div>
+  <div class="field"><label>دسته (اختیاری)</label><input id="fCat" placeholder="دارو / مصرفی / ضدعفونی…" autocomplete="off"></div>
+
+  <!-- واحد اندازه‌گیری — قلب فرم -->
+  <div class="field">
+    <label>واحد اندازه‌گیری</label>
+    <input id="fUnit" placeholder="ml · cc · گرم · mg · عدد · قرص…" autocomplete="off">
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px" id="unitChips">
+      <span class="unit-chip" data-u="عدد">عدد</span>
+      <span class="unit-chip" data-u="ml">ml</span>
+      <span class="unit-chip" data-u="cc">cc</span>
+      <span class="unit-chip" data-u="گرم">گرم</span>
+      <span class="unit-chip" data-u="mg">mg</span>
+      <span class="unit-chip" data-u="قرص">قرص</span>
+      <span class="unit-chip" data-u="آمپول">آمپول</span>
     </div>
   </div>
+
+  <!-- موجودی کل و مصرف هر بیمار -->
+  <div class="row2">
+    <div class="field">
+      <label id="fStockLbl">موجودی کل <span id="fStockUnit" class="chip"></span></label>
+      <input id="fStock" type="number" inputmode="decimal" step="any" placeholder="۰">
+      <div class="hint" id="fStockHint">مجموع کل موجودی را وارد کن</div>
+    </div>
+    <div class="field">
+      <label>مصرف هر بیمار <span id="fPerUnit" class="chip"></span></label>
+      <input id="fPer" type="number" inputmode="decimal" step="any" placeholder="۰">
+      <div class="hint" id="fPerHint">صفر = ثبت دستی در هر نوبت</div>
+    </div>
+  </div>
+
+  <!-- نمایش زنده محاسبه -->
+  <div id="fCalcPreview" class="okbox" style="display:none;margin-bottom:13px;font-size:12.5px"></div>
+
+  <!-- حد هشدار -->
+  <div class="field">
+    <label>حد هشدار <span id="fLowUnit" class="chip"></span></label>
+    <input id="fLow" type="number" inputmode="decimal" step="any" placeholder="۰">
+    <div class="hint">وقتی موجودی به این عدد رسید، هشدار کمبود نشان داده می‌شود (اختیاری)</div>
+  </div>
+
+  <!-- بسته‌بندی — تاشو و اختیاری -->
+  <details id="fPackDetails" style="margin-bottom:13px">
+    <summary style="font-size:13px;font-weight:800;color:var(--brand-deep);cursor:pointer;padding:10px 12px;background:var(--brand-soft);border-radius:12px;list-style:none;display:flex;justify-content:space-between;align-items:center">
+      <span>📦 معادل بسته‌بندی <span style="font-weight:600;color:var(--muted)">(اختیاری)</span></span>
+      <span class="pack-arrow" style="font-size:16px;transition:transform .2s">▸</span>
+    </summary>
+    <div style="padding:12px;background:var(--brand-soft);border-radius:0 0 12px 12px;border-top:1px solid var(--line);margin-top:-2px">
+      <div class="hint" style="margin-bottom:10px">اگر می‌خواهی کنار مقدار کل، تعداد ویال/رول/جعبه هم نمایش داده شود اینجا پُر کن.</div>
+      <div class="row2">
+        <div class="field" style="margin:0">
+          <label>مقدار در هر بسته <span id="fPackUnit2" class="chip"></span></label>
+          <input id="fPackSize" type="number" inputmode="decimal" step="any" placeholder="مثلاً ۲۰">
+          <div class="hint" id="fPackSizeHint">هر ویال/رول/جعبه چقدر دارد؟</div>
+        </div>
+        <div class="field" style="margin:0">
+          <label>نام بسته</label>
+          <input id="fPackUnit" placeholder="ویال / رول / جعبه" autocomplete="off">
+          <div class="hint">مثلاً: ویال، رول، آمپول</div>
+        </div>
+      </div>
+      <div id="fPackPreview" class="hint" style="margin-top:8px;color:var(--accent-deep);font-weight:700"></div>
+    </div>
+  </details>
+
   <button class="save-btn" id="itemSave">ذخیره</button>
   <button class="del-btn" id="itemDel" style="display:none">حذف این قلم</button>
 </div>
@@ -681,82 +725,57 @@ function fillDateSelects(yId,mId,dId,jy,jm,jd){
 }
 function readDate(yId,mId,dId){return {y:+document.getElementById(yId).value,m:+document.getElementById(mId).value,d:+document.getElementById(dId).value};}
 
-/* ---- unit mode helper for item form ---- */
-var UNIT_MODES={
-  count:{
-    hint:'موجودی و مصرف را به تعداد (عدد، قرص، دوز…) وارد کنید.',
-    unitPh:'عدد / قرص / دوز',
-    stockHint:'کل تعداد موجود (مثلاً ۵۰۰ عدد)',
-    perHint:'تعداد مصرف هر بیمار در هر نوبت (مثلاً ۲)',
-    lowHint:'',
-    showPack:true,
-    packDesc:'اگر می‌خواهی تعداد جعبه/کارتن هم نمایش داده شود:',
-    packSizeLbl:'تعداد در هر بسته',
-    packSizePh:'مثلاً ۱۰۰',
-    packSizeHint:'هر جعبه چند عدد دارد؟'
-  },
-  weight:{
-    hint:'موجودی را به گرم یا میلی‌گرم وارد کنید. سیستم مقدار کل را از هم کم می‌کند.',
-    unitPh:'گرم / mg / kg',
-    stockHint:'کل وزن موجود (مثلاً ۱۰۰۰ برای ۱۰۰۰mg)',
-    perHint:'وزن مصرف هر بیمار در هر نوبت (مثلاً ۵۰ برای ۵۰mg)',
-    lowHint:'',
-    showPack:true,
-    packDesc:'اگر می‌خواهی معادل بسته/رول هم نمایش داده شود:',
-    packSizeLbl:'وزن هر بسته/رول',
-    packSizePh:'مثلاً ۱۰۰ (برای رول ۱۰۰گرمی)',
-    packSizeHint:'هر رول/بسته چند گرم/mg دارد؟'
-  },
-  volume:{
-    hint:'موجودی را به میلی‌لیتر (cc/ml) وارد کنید. سیستم مقدار کل را از هم کم می‌کند.',
-    unitPh:'ml / cc / لیتر',
-    stockHint:'کل حجم موجود (مثلاً ۱۰۰۰ برای ۱۰۰۰ml)',
-    perHint:'حجم مصرف هر بیمار در هر نوبت (مثلاً ۲.۵ برای ۲.۵ml)',
-    lowHint:'',
-    showPack:true,
-    packDesc:'اگر می‌خواهی معادل ویال/آمپول هم نمایش داده شود:',
-    packSizeLbl:'حجم هر ویال/آمپول',
-    packSizePh:'مثلاً ۲۰ (برای ویال ۲۰cc)',
-    packSizeHint:'هر ویال/آمپول چند ml/cc دارد؟'
-  }
-};
-var curUnitMode='count';
-function applyUnitMode(mode){
-  curUnitMode=mode||'count';
-  var m=UNIT_MODES[curUnitMode];
-  // update mode buttons
-  ['count','weight','volume'].forEach(function(k){
-    var btn=document.getElementById('unitMode'+k.charAt(0).toUpperCase()+k.slice(1));
-    if(!btn)return;
-    var active=k===curUnitMode;
-    btn.style.borderColor=active?'var(--brand-deep)':'var(--line)';
-    btn.style.background=active?'var(--brand-deep)':'var(--card)';
-    btn.style.color=active?'#fff':'var(--muted)';
+/* ---- item form: live unit badges + chip selector + calc preview ---- */
+function itemFormUnitChanged(){
+  var u=document.getElementById('fUnit').value.trim();
+  var badge=u?u:'';
+  ['fStockUnit','fPerUnit','fLowUnit','fPackUnit2'].forEach(function(id){
+    var el=document.getElementById(id);if(!el)return;
+    el.textContent=badge;el.style.display=badge?'':'none';
   });
-  document.getElementById('unitModeHint').textContent=m.hint;
-  document.getElementById('fUnit').placeholder=m.unitPh;
-  document.getElementById('fStockHint').textContent=m.stockHint;
-  document.getElementById('fPerLbl').textContent=curUnitMode==='count'?'مصرف هر بیمار':'مقدار مصرف هر بیمار';
-  document.getElementById('fPerHint').textContent=m.perHint;
-  document.getElementById('fPackSection').style.display=m.showPack?'block':'none';
-  document.getElementById('fPackDesc').textContent=m.packDesc||'';
-  document.getElementById('fPackSizeLbl').textContent=m.packSizeLbl||'مقدار در هر بسته';
-  document.getElementById('fPackSize').placeholder=m.packSizePh||'';
-  document.getElementById('fPackSizeHint').textContent=m.packSizeHint||'';
+  // highlight matching chip
+  document.querySelectorAll('.unit-chip').forEach(function(c){
+    c.classList.toggle('selected',c.dataset.u===u);
+  });
+  itemFormCalcPreview();
+  itemFormPackPreview();
 }
-['Count','Weight','Volume'].forEach(function(k){
-  var btn=document.getElementById('unitMode'+k);
-  if(btn)btn.onclick=function(){applyUnitMode(k.toLowerCase());};
+function itemFormCalcPreview(){
+  var u=document.getElementById('fUnit').value.trim();
+  var per=pnum(document.getElementById('fPer').value);
+  var stock=pnum(document.getElementById('fStock').value)||0;
+  var prev=document.getElementById('fCalcPreview');
+  if(per>0&&stock>0){
+    var patients=Math.floor(stock/per);
+    prev.style.display='block';
+    prev.innerHTML='<b>'+fmt(stock)+' '+esc(u)+'</b> برای <b>'+fa(patients)+' بیمار</b> کافی است ('+fmt(per)+' '+esc(u)+' هر بیمار)';
+  }else{prev.style.display='none';}
+}
+function itemFormPackPreview(){
+  var u=document.getElementById('fUnit').value.trim();
+  var ps=pnum(document.getElementById('fPackSize').value);
+  var pu=document.getElementById('fPackUnit').value.trim();
+  var stock=pnum(document.getElementById('fStock').value)||0;
+  var prev=document.getElementById('fPackPreview');
+  if(ps>0&&pu&&stock>0){
+    prev.textContent='مثال: موجودی '+fmt(stock)+' '+u+' = '+fmt(Math.round(stock/ps*100)/100)+' '+pu;
+  }else if(ps>0&&pu){
+    prev.textContent='هر '+pu+' = '+fmt(ps)+' '+u;
+  }else{prev.textContent='';}
+  if(document.getElementById('fPackSizeHint'))
+    document.getElementById('fPackSizeHint').textContent=u?'هر ویال/رول/جعبه چند '+u+' دارد؟':'هر ویال/رول/جعبه چقدر دارد؟';
+}
+document.getElementById('fUnit').addEventListener('input',itemFormUnitChanged);
+document.getElementById('fPer').addEventListener('input',itemFormCalcPreview);
+document.getElementById('fStock').addEventListener('input',function(){itemFormCalcPreview();itemFormPackPreview();});
+document.getElementById('fPackSize').addEventListener('input',itemFormPackPreview);
+document.getElementById('fPackUnit').addEventListener('input',function(){itemFormPackPreview();itemFormUnitChanged();});
+document.querySelectorAll('.unit-chip').forEach(function(c){
+  c.addEventListener('click',function(){
+    document.getElementById('fUnit').value=c.dataset.u;
+    itemFormUnitChanged();
+  });
 });
-
-function detectUnitMode(it){
-  if(!it)return 'count';
-  var u=(it.unit||'').toLowerCase();
-  if(/mg|گرم|gram|kg/.test(u))return 'weight';
-  if(/ml|cc|لیتر|litr/.test(u))return 'volume';
-  if(it.per>0&&it.per%1!==0)return 'volume'; // fractional per → likely liquid
-  return 'count';
-}
 
 /* ---- item add/edit ---- */
 var editItemId=null;
@@ -767,24 +786,29 @@ function openItem(id){
   if(id){
     var it=state.items.find(function(x){return x.id===id;});
     t.textContent='ویرایش قلم';
-    applyUnitMode(detectUnitMode(it));
     document.getElementById('fName').value=it.name||'';
     document.getElementById('fUnit').value=it.unit||'';
     document.getElementById('fCat').value=it.cat||'';
     document.getElementById('fStock').value=stockMap()[id]||0;
-    document.getElementById('fStock').disabled=true;stockLbl.textContent='موجودی کل فعلی (از طریق «اصلاح» تغییر بده)';
+    document.getElementById('fStock').disabled=true;
+    stockLbl.textContent='موجودی کل فعلی';
+    document.getElementById('fStockHint').textContent='برای تغییر موجودی از «اصلاح» در کاردکس استفاده کن';
     document.getElementById('fPer').value=it.per||'';
     document.getElementById('fLow').value=it.lowAt||'';
     document.getElementById('fPackSize').value=it.packSize||'';
     document.getElementById('fPackUnit').value=it.packUnit||'';
+    if(it.packSize>0)document.getElementById('fPackDetails').setAttribute('open','');
     document.getElementById('itemDel').style.display='block';
   }else{
     t.textContent='قلم جدید';
-    applyUnitMode('count');
     ['fName','fUnit','fCat','fStock','fPer','fLow','fPackSize','fPackUnit'].forEach(function(k){document.getElementById(k).value='';});
-    document.getElementById('fStock').disabled=false;stockLbl.textContent='موجودی اولیه';
+    document.getElementById('fStock').disabled=false;
+    stockLbl.textContent='موجودی کل';
+    document.getElementById('fStockHint').textContent='مجموع کل موجودی را وارد کن';
+    document.getElementById('fPackDetails').removeAttribute('open');
     document.getElementById('itemDel').style.display='none';
   }
+  itemFormUnitChanged();
   openSheet('itemSheet');
 }
 document.getElementById('addBtn').onclick=function(){openItem(null);};
