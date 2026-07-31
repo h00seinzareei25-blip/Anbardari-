@@ -10,6 +10,10 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
+<script src="xlsx.min.js"></script>
+<script src="jspdf.min.js"></script>
+<script src="jspdf.autotable.min.js"></script>
+<script src="html2canvas.min.js"></script>
 <title>انبار پزشکی</title>
 <meta name="description" content="مدیریت آفلاین موجودی و مصرف اقلام پزشکی">
 <style>
@@ -209,6 +213,34 @@
   .num-safe{direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums;white-space:nowrap;}
   .rtable tr:last-child td{border-bottom:0;}
 
+  /* chart sheet */
+  .chart-tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .chart-tab{flex:1;padding:9px 6px;border-radius:11px;font-weight:700;font-size:13px;border:1.5px solid var(--line);background:var(--card);color:var(--muted);text-align:center;cursor:pointer;}
+  .chart-tab.active{background:var(--brand-deep);color:#fff;border-color:var(--brand-deep);}
+  @media(prefers-color-scheme:dark){.chart-tab.active{background:var(--brand);color:var(--bg);}}
+  .chart-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
+  .chart-summary .cs{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 8px;text-align:center;}
+  .chart-summary .cs .cv{font-size:22px;font-weight:800;color:var(--brand-deep);line-height:1.1;}
+  .chart-summary .cs .cl{font-size:11px;color:var(--muted);margin-top:3px;font-weight:600;}
+  .bar-chart{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:10px;overflow:hidden;}
+  .bar-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);}
+  .bar-row:last-child{border-bottom:0;}
+  .bar-label{flex:0 0 110px;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;}
+  .bar-wrap{flex:1;background:var(--bg);border-radius:8px;height:20px;position:relative;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:8px;transition:width .4s ease;min-width:3px;}
+  .bar-fill.ok{background:linear-gradient(90deg,#4CAF50,#66BB6A);}
+  .bar-fill.low{background:linear-gradient(90deg,#FF9800,#FFA726);}
+  .bar-fill.out{background:linear-gradient(90deg,#C84A4A,#E57373);}
+  .bar-threshold{position:absolute;top:0;bottom:0;width:2px;background:rgba(200,74,74,.55);}
+  .bar-val{flex:0 0 55px;font-size:12px;font-weight:800;text-align:center;direction:ltr;font-variant-numeric:tabular-nums;}
+  .bar-val.ok{color:#388E3C;}
+  .bar-val.low{color:#E65100;}
+  .bar-val.out{color:var(--danger);}
+  .pie-wrap{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;padding:10px 0;}
+  .pie-legend{display:flex;flex-direction:column;gap:8px;}
+  .pie-leg-item{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;}
+  .pie-dot{width:14px;height:14px;border-radius:4px;flex:0 0 14px;}
+
   /* toast */
   .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);
     background:var(--ink);color:#fff;padding:10px 18px;border-radius:30px;font-size:13.5px;font-weight:700;
@@ -350,12 +382,28 @@
   <div id="repOut" style="margin-top:14px"></div>
 </div>
 
+<!-- chart / analytics -->
+<div class="sheet" id="chartSheet">
+  <div class="grab"></div>
+  <h2><span>آمار و نمودار موجودی</span><span class="x" data-close>✕</span></h2>
+  <div class="chart-tabs">
+    <div class="chart-tab active" data-ctab="bar">نمودار میله‌ای</div>
+    <div class="chart-tab" data-ctab="pie">نمودار وضعیت</div>
+    <div class="chart-tab" data-ctab="top">پرمصرف‌ترین</div>
+  </div>
+  <div id="chartSummary" class="chart-summary"></div>
+  <div id="chartContent"></div>
+</div>
+
 <!-- menu -->
 <div class="sheet" id="menuSheet">
   <div class="grab"></div>
   <h2><span>منو</span><span class="x" data-close>✕</span></h2>
+  <div class="menu-item" id="mnChart"><span class="mi">📈</span><div><div class="mt">آمار و نمودار موجودی</div><div class="ms">نمایش بصری وضعیت کالاها</div></div></div>
   <div class="menu-item" id="mnReport"><span class="mi">📊</span><div><div class="mt">گزارش بازه‌ای</div><div class="ms">مصرف و دریافت در یک بازهٔ زمانی</div></div></div>
-  <div class="menu-item" id="mnCsv"><span class="mi">📄</span><div><div class="mt">خروجی CSV موجودی</div><div class="ms">باز شدن در Excel</div></div></div>
+  <div class="menu-item" id="mnExcel"><span class="mi">🟢</span><div><div class="mt">خروجی Excel (xlsx)</div><div class="ms">فایل اکسل با دو شیت: موجودی + گردش</div></div></div>
+  <div class="menu-item" id="mnPdf"><span class="mi">🔴</span><div><div class="mt">خروجی PDF</div><div class="ms">گزارش کامل انبار به‌صورت PDF</div></div></div>
+  <div class="menu-item" id="mnCsv"><span class="mi">📄</span><div><div class="mt">خروجی CSV موجودی</div><div class="ms">فرمت ساده برای Excel</div></div></div>
   <div class="menu-item" id="mnShare"><span class="mi">📤</span><div><div class="mt">اشتراک‌گذاری وضعیت انبار</div><div class="ms">ارسال خلاصه موجودی به دیگران</div></div></div>
   <div class="menu-item" id="mnBackup"><span class="mi">💾</span><div><div class="mt">پشتیبان (فایل JSON)</div><div class="ms">ذخیرهٔ کامل داده‌ها</div></div></div>
   <div class="menu-item" id="mnRestore"><span class="mi">📥</span><div><div class="mt">بازیابی از پشتیبان</div><div class="ms">جایگزینی داده‌های فعلی</div></div></div>
@@ -844,6 +892,235 @@ function dl(blob,name){var a=document.createElement('a');a.href=URL.createObject
 
 /* search */
 document.getElementById('q').addEventListener('input',function(e){curQ=e.target.value;render();});
+
+/* ============ Chart / Analytics ============ */
+var curChartTab='bar';
+document.querySelectorAll('[data-ctab]').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('[data-ctab]').forEach(function(x){x.classList.remove('active');});
+    t.classList.add('active');
+    curChartTab=t.dataset.ctab;
+    renderChart();
+  });
+});
+
+function openChart(){renderChart();openSheet('chartSheet');}
+document.getElementById('mnChart').onclick=function(){closeSheets();setTimeout(openChart,50);};
+
+function renderChart(){
+  var sm=stockMap();
+  var items=state.items.slice();
+  var okCount=0,lowCount=0,outCount=0;
+  items.forEach(function(it){
+    var s=sm[it.id];
+    if(s<=0)outCount++;
+    else if(it.lowAt>0&&s<=it.lowAt)lowCount++;
+    else okCount++;
+  });
+  // summary cards
+  document.getElementById('chartSummary').innerHTML=
+    '<div class="cs"><div class="cv" style="color:#388E3C">'+fa(okCount)+'</div><div class="cl">موجودی کافی</div></div>'+
+    '<div class="cs"><div class="cv" style="color:#E65100">'+fa(lowCount)+'</div><div class="cl">رو به اتمام</div></div>'+
+    '<div class="cs"><div class="cv" style="color:var(--danger)">'+fa(outCount)+'</div><div class="cl">تمام شده</div></div>';
+
+  var el=document.getElementById('chartContent');
+  if(!items.length){el.innerHTML='<div class="empty"><div class="big">📦</div>هنوز کالایی ثبت نشده</div>';return;}
+
+  if(curChartTab==='bar')renderBarChart(el,items,sm);
+  else if(curChartTab==='pie')renderPieChart(el,items,sm,okCount,lowCount,outCount);
+  else renderTopChart(el,sm);
+}
+
+function renderBarChart(el,items,sm){
+  var maxStock=0;
+  items.forEach(function(it){var s=sm[it.id];if(s>maxStock)maxStock=s;});
+  if(maxStock===0)maxStock=1;
+  var rows=items.map(function(it){
+    var s=Math.max(0,sm[it.id]);
+    var isOut=s<=0;var isLow=!isOut&&it.lowAt>0&&s<=it.lowAt;
+    var cls=isOut?'out':(isLow?'low':'ok');
+    var pct=Math.min(100,Math.round(s/maxStock*100));
+    var thPct=it.lowAt>0?Math.min(100,Math.round(it.lowAt/maxStock*100)):0;
+    var thLine=thPct>0?'<div class="bar-threshold" style="right:'+thPct+'%"></div>':'';
+    return '<div class="bar-row">'+
+      '<div class="bar-label" title="'+esc(it.name)+'">'+esc(it.name)+'</div>'+
+      '<div class="bar-wrap"><div class="bar-fill '+cls+'" style="width:'+pct+'%"></div>'+thLine+'</div>'+
+      '<div class="bar-val '+cls+'">'+fmt(sm[it.id])+(it.unit?' '+esc(it.unit):'')+'</div>'+
+      '</div>';
+  }).join('');
+  el.innerHTML='<div class="bar-chart">'+rows+'</div>'+
+    '<div class="hint" style="margin-top:6px">خط قرمز = حد هشدار کمبود</div>';
+}
+
+function renderPieChart(el,items,sm,ok,low,out){
+  var total=items.length||1;
+  var okPct=ok/total,lowPct=low/total,outPct=out/total;
+  var size=160,cx=size/2,cy=size/2,r=60,inner=30;
+  function arc(start,end,color){
+    if(end-start<0.001)return '';
+    var sa=start*2*Math.PI-Math.PI/2,ea=end*2*Math.PI-Math.PI/2;
+    var x1=cx+r*Math.cos(sa),y1=cy+r*Math.sin(sa);
+    var x2=cx+r*Math.cos(ea),y2=cy+r*Math.sin(ea);
+    var ix1=cx+inner*Math.cos(sa),iy1=cy+inner*Math.sin(sa);
+    var ix2=cx+inner*Math.cos(ea),iy2=cy+inner*Math.sin(ea);
+    var large=((end-start)>0.5)?1:0;
+    return '<path d="M'+ix1+' '+iy1+' L'+x1+' '+y1+' A'+r+' '+r+' 0 '+large+' 1 '+x2+' '+y2+' L'+ix2+' '+iy2+' A'+inner+' '+inner+' 0 '+large+' 0 '+ix1+' '+iy1+' Z" fill="'+color+'"/>';
+  }
+  var s0=0,s1=okPct,s2=s1+lowPct,s3=s2+outPct;
+  var svg='<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" style="overflow:visible">'+
+    arc(s0,s1,'#66BB6A')+arc(s1,s2,'#FFA726')+arc(s2,s3,'#E57373')+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+inner+'" fill="var(--card)"/>'+
+    '<text x="'+cx+'" y="'+(cy+5)+'" text-anchor="middle" font-size="14" font-weight="800" fill="var(--ink)">'+fa(total)+'</text>'+
+    '</svg>';
+  var legend='<div class="pie-legend">'+
+    '<div class="pie-leg-item"><div class="pie-dot" style="background:#66BB6A"></div>کافی: '+fa(ok)+'</div>'+
+    '<div class="pie-leg-item"><div class="pie-dot" style="background:#FFA726"></div>رو به اتمام: '+fa(low)+'</div>'+
+    '<div class="pie-leg-item"><div class="pie-dot" style="background:#E57373"></div>تمام شده: '+fa(out)+'</div>'+
+    '</div>';
+  el.innerHTML='<div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px">'+
+    '<div class="pie-wrap">'+svg+legend+'</div></div>';
+}
+
+function renderTopChart(el,sm){
+  var tj=todayJ();
+  var monKey0=jKey(tj[0],tj[1],1);var monKeyEnd=jKey(tj[0],tj[1],jMonthLen(tj[0],tj[1]));
+  var cons={};
+  state.moves.forEach(function(m){
+    if(m.gkey<monKey0||m.gkey>monKeyEnd)return;
+    if(m.kind==='out'||m.kind==='session'){
+      if(!cons[m.itemId])cons[m.itemId]=0;
+      cons[m.itemId]+=Math.abs(m.delta);
+    }
+  });
+  var ranked=state.items.filter(function(it){return cons[it.id]>0;})
+    .sort(function(a,b){return (cons[b.id]||0)-(cons[a.id]||0);}).slice(0,10);
+  if(!ranked.length){el.innerHTML='<div class="empty">این ماه هنوز مصرفی ثبت نشده</div>';return;}
+  var maxCons=cons[ranked[0].id]||1;
+  var rows=ranked.map(function(it,i){
+    var c=cons[it.id]||0;var pct=Math.round(c/maxCons*100);
+    return '<div class="bar-row">'+
+      '<div class="bar-label" title="'+esc(it.name)+'">'+fa(i+1)+'. '+esc(it.name)+'</div>'+
+      '<div class="bar-wrap"><div class="bar-fill ok" style="width:'+pct+'%;background:linear-gradient(90deg,#5C6BC0,#7986CB)"></div></div>'+
+      '<div class="bar-val" style="color:#3949AB">'+fmt(c)+'</div>'+
+      '</div>';
+  }).join('');
+  el.innerHTML='<div class="sec-title"><span>پرمصرف‌ترین کالاها این ماه</span></div>'+
+    '<div class="bar-chart">'+rows+'</div>';
+}
+
+/* ============ Excel Export (SheetJS) ============ */
+document.getElementById('mnExcel').onclick=function(){
+  if(!window.XLSX){toast('کتابخانه اکسل بارگذاری نشده');return;}
+  var sm=stockMap();
+  var tj=todayJ();
+
+  // Sheet 1: current inventory
+  var wsData=[
+    ['نام کالا','دسته','واحد','موجودی فعلی','مصرف هر بیمار','حد هشدار','وضعیت']
+  ];
+  state.items.forEach(function(it){
+    var s=sm[it.id];
+    var status=s<=0?'تمام شده':(it.lowAt>0&&s<=it.lowAt?'رو به اتمام':'کافی');
+    wsData.push([it.name,it.cat||'',it.unit||'',s,it.per||0,it.lowAt||0,status]);
+  });
+  var ws1=XLSX.utils.aoa_to_sheet(wsData);
+  ws1['!cols']=[{wch:22},{wch:12},{wch:10},{wch:12},{wch:14},{wch:12},{wch:12}];
+
+  // Sheet 2: movement history
+  var mvData=[
+    ['تاریخ','نام کالا','نوع','مقدار','بیمار','توضیح']
+  ];
+  var kindNames={open:'موجودی اولیه',in:'دریافت',out:'مصرف دستی',session:'تزریق',adjust:'اصلاح'};
+  var sorted=state.moves.slice().sort(function(a,b){return a.gkey-b.gkey||a.ts-b.ts;});
+  sorted.forEach(function(m){
+    var it=state.items.find(function(x){return x.id===m.itemId;});
+    var dateStr=m.y+'/'+String(m.m).padStart(2,'0')+'/'+String(m.d).padStart(2,'0');
+    mvData.push([dateStr,it?it.name:'—',kindNames[m.kind]||m.kind,m.delta,m.patients||'',m.note||'']);
+  });
+  var ws2=XLSX.utils.aoa_to_sheet(mvData);
+  ws2['!cols']=[{wch:12},{wch:22},{wch:14},{wch:10},{wch:8},{wch:20}];
+
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,'موجودی فعلی',ws1);
+  XLSX.utils.book_append_sheet(wb,'گردش کالا',ws2);
+  var fname='انبار-پزشکی-'+tj[0]+'-'+tj[1]+'-'+tj[2]+'.xlsx';
+  XLSX.writeFile(wb,fname);
+  toast('فایل Excel ذخیره شد ✓');
+};
+
+/* ============ PDF Export (html2canvas + jsPDF) ============ */
+document.getElementById('mnPdf').onclick=function(){
+  if(!window.jspdf||!window.html2canvas){toast('کتابخانه PDF بارگذاری نشده');return;}
+  toast('در حال ساخت PDF...');
+  var sm=stockMap();
+  var tj=todayJ();
+  var dateStr=tj[0]+'/'+String(tj[1]).padStart(2,'0')+'/'+String(tj[2]).padStart(2,'0');
+
+  // Build an off-screen printable div
+  var div=document.createElement('div');
+  div.style.cssText='position:fixed;left:-9999px;top:0;width:700px;background:#fff;font-family:Tahoma,Arial,sans-serif;direction:rtl;padding:24px;font-size:13px;color:#111;';
+
+  var kindNames={open:'موجودی اولیه',in:'دریافت',out:'مصرف دستی',session:'تزریق',adjust:'اصلاح'};
+  var rows=state.items.map(function(it){
+    var s=sm[it.id];
+    var isOut=s<=0;var isLow=!isOut&&it.lowAt>0&&s<=it.lowAt;
+    var bg=isOut?'#fdecea':(isLow?'#fff3e0':'#f9fbe7');
+    var statusTxt=isOut?'تمام':(isLow?'کم':'کافی');
+    return '<tr style="background:'+bg+'"><td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;font-weight:700">'+esc(it.name)+'</td>'+
+      '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center">'+esc(it.cat||'—')+'</td>'+
+      '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center;direction:ltr">'+it.unit+'</td>'+
+      '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center;font-weight:800;direction:ltr">'+s+'</td>'+
+      '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center">'+statusTxt+'</td></tr>';
+  }).join('');
+
+  var totalItems=state.items.length;
+  var lowCount=state.items.filter(function(it){return it.lowAt>0&&sm[it.id]<=it.lowAt;}).length;
+  var outCount=state.items.filter(function(it){return sm[it.id]<=0;}).length;
+
+  div.innerHTML=
+    '<div style="border-bottom:3px solid #111;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">'+
+    '<div><div style="font-size:20px;font-weight:900">انبار پزشکی</div><div style="color:#666;font-size:12px;margin-top:2px">گزارش وضعیت موجودی</div></div>'+
+    '<div style="text-align:left;font-size:12px;color:#555">تاریخ: '+dateStr+'</div></div>'+
+    '<div style="display:flex;gap:12px;margin-bottom:16px">'+
+    '<div style="flex:1;background:#f5f5f5;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:900">'+totalItems+'</div><div style="font-size:11px;color:#666">قلم کالا</div></div>'+
+    '<div style="flex:1;background:#fff3e0;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:900;color:#E65100">'+lowCount+'</div><div style="font-size:11px;color:#666">رو به اتمام</div></div>'+
+    '<div style="flex:1;background:#fdecea;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:900;color:#C62828">'+outCount+'</div><div style="font-size:11px;color:#666">تمام شده</div></div>'+
+    '</div>'+
+    '<table style="width:100%;border-collapse:collapse;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">'+
+    '<thead><tr style="background:#f0f0f0"><th style="padding:9px 6px;text-align:right;border-bottom:2px solid #ccc">نام کالا</th>'+
+    '<th style="padding:9px 6px;text-align:center;border-bottom:2px solid #ccc">دسته</th>'+
+    '<th style="padding:9px 6px;text-align:center;border-bottom:2px solid #ccc">واحد</th>'+
+    '<th style="padding:9px 6px;text-align:center;border-bottom:2px solid #ccc">موجودی</th>'+
+    '<th style="padding:9px 6px;text-align:center;border-bottom:2px solid #ccc">وضعیت</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table>'+
+    '<div style="margin-top:14px;font-size:11px;color:#888;text-align:center">تهیه‌شده توسط برنامه انبار پزشکی — '+dateStr+'</div>';
+
+  document.body.appendChild(div);
+
+  html2canvas(div,{scale:2,useCORS:true,backgroundColor:'#fff'}).then(function(canvas){
+    document.body.removeChild(div);
+    var imgData=canvas.toDataURL('image/png');
+    var pdf=new jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    var pageW=pdf.internal.pageSize.getWidth();
+    var pageH=pdf.internal.pageSize.getHeight();
+    var imgW=pageW-20;
+    var imgH=canvas.height*(imgW/canvas.width);
+    var margin=10,yPos=margin;
+    // multi-page support
+    while(yPos<imgH+margin){
+      if(yPos>margin)pdf.addPage();
+      pdf.addImage(imgData,'PNG',margin,margin-(yPos-margin),imgW,imgH);
+      yPos+=pageH-2*margin;
+    }
+    var fname='انبار-پزشکی-'+tj[0]+'-'+tj[1]+'-'+tj[2]+'.pdf';
+    pdf.save(fname);
+    toast('فایل PDF ذخیره شد ✓');
+  }).catch(function(err){
+    document.body.removeChild(div);
+    console.error(err);
+    toast('خطا در ساخت PDF');
+  });
+};
 
 window.addEventListener('error',function(e){console.error(e.error||e.message);});
 window.addEventListener('unhandledrejection',function(e){console.error(e.reason);});
