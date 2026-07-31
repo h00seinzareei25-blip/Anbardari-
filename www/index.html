@@ -302,10 +302,18 @@
     <div class="field"><label>دستهٔ (اختیاری)</label><input id="fCat" placeholder="مصرفی / دارو…" autocomplete="off"></div>
   </div>
   <div class="row2">
-    <div class="field"><label id="fStockLbl">موجودی فعلی</label><input id="fStock" type="number" inputmode="numeric" placeholder="۰"></div>
-    <div class="field"><label>مصرف هر بیمار</label><input id="fPer" type="number" inputmode="decimal" placeholder="۰"><div class="hint">در هر تزریق برای هر بیمار چند تا مصرف می‌شود؟ صفر = دستی</div></div>
+    <div class="field"><label id="fStockLbl">موجودی فعلی</label><input id="fStock" type="number" inputmode="decimal" step="any" placeholder="۰"></div>
+    <div class="field"><label>مصرف هر بیمار</label><input id="fPer" type="number" inputmode="decimal" step="any" placeholder="۰"><div class="hint">در هر تزریق برای هر بیمار چقدر مصرف می‌شود؟ (می‌تواند اعشاری باشد) صفر = دستی</div></div>
   </div>
-  <div class="field"><label>حد هشدار کمبود</label><input id="fLow" type="number" inputmode="numeric" placeholder="۱۰"><div class="hint">وقتی موجودی کمتر یا برابر این عدد شد، هشدار می‌دهد.</div></div>
+  <div class="field"><label>حد هشدار کمبود</label><input id="fLow" type="number" inputmode="decimal" step="any" placeholder="۱۰"><div class="hint">وقتی موجودی کمتر یا برابر این عدد شد، هشدار می‌دهد.</div></div>
+  <div style="background:var(--brand-soft);border-radius:13px;padding:12px;margin-bottom:13px">
+    <div style="font-size:12px;font-weight:800;color:var(--brand-deep);margin-bottom:10px">📦 ردیابی بسته‌بندی (اختیاری)</div>
+    <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">برای مواردی مثل لیدوکایین (ویال ۲۰cc) یا پنبه (رول ۱۰۰گرم) تعریف کنید تا علاوه بر مقدار پایه، تعداد بسته هم نمایش داده شود.</div>
+    <div class="row2">
+      <div class="field" style="margin:0"><label>اندازه هر بسته</label><input id="fPackSize" type="number" inputmode="decimal" step="any" placeholder="مثلاً ۲۰ یا ۱۰۰"><div class="hint">چند واحد در هر بسته/ویال/رول؟</div></div>
+      <div class="field" style="margin:0"><label>نام بسته</label><input id="fPackUnit" placeholder="ویال / رول / آمپول" autocomplete="off"><div class="hint">چه می‌نامیدش؟</div></div>
+    </div>
+  </div>
   <button class="save-btn" id="itemSave">ذخیره</button>
   <button class="del-btn" id="itemDel" style="display:none">حذف این قلم</button>
 </div>
@@ -341,7 +349,14 @@
     <div class="field" style="margin:0"><label>ماه</label><select id="mM"></select></div>
     <div class="field" style="margin:0"><label>روز</label><select id="mD"></select></div>
   </div>
-  <div class="field"><label id="mQtyLbl">تعداد دریافتی</label><input id="mQty" type="number" inputmode="numeric" placeholder="۰"></div>
+  <div class="field"><label id="mQtyLbl">تعداد دریافتی</label><input id="mQty" type="number" inputmode="decimal" step="any" placeholder="۰"></div>
+  <div id="mPackWrap" style="display:none;margin:-8px 0 12px">
+    <div class="hint" id="mPackHint"></div>
+    <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+      <input id="mPackQty" type="number" inputmode="decimal" step="any" placeholder="تعداد بسته" style="flex:1;background:var(--card);border:1.5px solid var(--brand);border-radius:12px;padding:10px 13px;outline:none;font-size:15px;direction:ltr;text-align:right">
+      <span id="mPackLabel" style="font-size:13px;font-weight:700;color:var(--brand-deep);flex:0 0 auto"></span>
+    </div>
+  </div>
   <div id="mAdjustHint" class="hint" style="display:none;margin:-8px 2px 10px"></div>
   <div class="field"><label>توضیح (اختیاری)</label><input id="mNote" placeholder="فاکتور / دلیل" autocomplete="off"></div>
   <button class="save-btn" id="moveSave">ثبت</button>
@@ -462,7 +477,7 @@ function normalizeState(v){
     if(!raw||typeof raw!=='object')return;
     var id=String(raw.id||uid());if(seen[id])id=uid();seen[id]=true;
     var name=String(raw.name||'').trim();if(!name)return;
-    items.push({id:id,name:name,unit:String(raw.unit||'').trim(),cat:String(raw.cat||'').trim(),per:Math.max(0,pnum(raw.per)),lowAt:Math.max(0,pnum(raw.lowAt))});
+    items.push({id:id,name:name,unit:String(raw.unit||'').trim(),cat:String(raw.cat||'').trim(),per:Math.max(0,pnum(raw.per)),lowAt:Math.max(0,pnum(raw.lowAt)),packSize:Math.max(0,pnum(raw.packSize)),packUnit:String(raw.packUnit||'').trim()});
   });
   var valid={};items.forEach(function(it){valid[it.id]=true;});
   var moves=(Array.isArray(v.moves)?v.moves:[]).filter(function(m){return m&&valid[String(m.itemId)]&&isFinite(Number(m.delta));}).map(function(m){
@@ -493,6 +508,21 @@ function persist(){
 function load(){return dbGet('state').then(function(s){state=normalizeState(s||localRead());if(s)localWrite(state);});}
 window.addEventListener('pagehide',function(){localWrite(state);});
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')localWrite(state);});
+
+/* ============ package helper ============ */
+function packInfo(it,stock){
+  // returns a short string like "≈ ۲ ویال" or "" if no pack defined
+  if(!it||!it.packSize||it.packSize<=0)return '';
+  var packs=stock/it.packSize;
+  var label=it.packUnit||'بسته';
+  return '≈ '+fmt(Math.round(packs*10)/10)+' '+label;
+}
+function fmtStock(it,stock){
+  // formatted display like "12.5 ml" or "200 گرم (≈ 2 رول)"
+  var base=fmt(stock)+(it.unit?' '+it.unit:'');
+  var pack=packInfo(it,stock);
+  return pack?base+' ('+pack+')':base;
+}
 
 /* ============ stock computation ============ */
 function stockMap(){
@@ -531,7 +561,7 @@ function render(){
       (!q?'<div class="drag-handle" data-drag="'+it.id+'" title="برای جابه‌جایی بکشید" aria-label="جابه‌جایی قلم">⋮⋮</div>':'')+
       '<div class="info"><div class="nm">'+esc(it.name)+(it.cat?' <span class="chip">'+esc(it.cat)+'</span>':'')+'</div>'+per+
       (badge?'<div>'+badge+'</div>':'')+'</div>'+
-      '<div class="amount"><div class="q'+(isLow?' low':'')+'">'+fmt(s)+'</div><div class="u">'+esc(it.unit||'موجودی')+'</div></div></div>';
+      '<div class="amount"><div class="q'+(isLow?' low':'')+'">'+fmt(s)+'</div><div class="u">'+esc(it.unit||'موجودی')+'</div>'+(it.packSize>0?'<div class="u" style="color:var(--accent-deep);font-size:10px">'+esc(packInfo(it,s))+'</div>':'')+'</div></div>';
   }).join('');
   el.querySelectorAll('.item').forEach(function(c){c.onclick=function(e){if(e.target.closest('[data-drag]')||c.classList.contains('dragging'))return;openKardex(c.dataset.id);};});
   if(!q)initItemReorder(el);
@@ -664,10 +694,12 @@ function openItem(id){
     document.getElementById('fStock').disabled=true;stockLbl.textContent='موجودی فعلی (از طریق «اصلاح» تغییر بده)';
     document.getElementById('fPer').value=it.per||'';
     document.getElementById('fLow').value=it.lowAt||'';
+    document.getElementById('fPackSize').value=it.packSize||'';
+    document.getElementById('fPackUnit').value=it.packUnit||'';
     document.getElementById('itemDel').style.display='block';
   }else{
     t.textContent='قلم جدید';
-    ['fName','fUnit','fCat','fStock','fPer','fLow'].forEach(function(k){document.getElementById(k).value='';});
+    ['fName','fUnit','fCat','fStock','fPer','fLow','fPackSize','fPackUnit'].forEach(function(k){document.getElementById(k).value='';});
     document.getElementById('fStock').disabled=false;stockLbl.textContent='موجودی اولیه';
     document.getElementById('itemDel').style.display='none';
   }
@@ -681,13 +713,15 @@ document.getElementById('itemSave').onclick=function(){
   var cat=document.getElementById('fCat').value.trim();
   var per=pnum(document.getElementById('fPer').value);
   var lowAt=pnum(document.getElementById('fLow').value);
+  var packSize=pnum(document.getElementById('fPackSize').value);
+  var packUnit=document.getElementById('fPackUnit').value.trim();
   if(editItemId){
     var it=state.items.find(function(x){return x.id===editItemId;});
-    it.name=name;it.unit=unit;it.cat=cat;it.per=per;it.lowAt=lowAt;
+    it.name=name;it.unit=unit;it.cat=cat;it.per=per;it.lowAt=lowAt;it.packSize=packSize;it.packUnit=packUnit;
   }else{
     var stock=pnum(document.getElementById('fStock').value);
     var id=uid();
-    state.items.push({id:id,name:name,unit:unit,cat:cat,per:per,lowAt:lowAt});
+    state.items.push({id:id,name:name,unit:unit,cat:cat,per:per,lowAt:lowAt,packSize:packSize,packUnit:packUnit});
     if(stock!==0){var tj=todayJ();state.moves.push({id:uid(),itemId:id,delta:stock,kind:'open',y:tj[0],m:tj[1],d:tj[2],gkey:jKey(tj[0],tj[1],tj[2]),ts:Date.now(),note:'موجودی اولیه'});}
   }
   var savedId=editItemId;
@@ -728,10 +762,12 @@ function renderSessPreview(){
   box.innerHTML=its.map(function(it){
     var need=it.per*pat;var off=sessExclude[it.id];
     var after=sm[it.id]-(off?0:need);var bad=after<0;
+    var afterPack=it.packSize>0?(' · '+packInfo(it,Math.max(0,after))):'';
+    var stockDisp=it.packSize>0?fmtStock(it,sm[it.id]):fmt(sm[it.id])+(it.unit?' '+it.unit:'');
     return '<div class="prow'+(off?' off':'')+'" data-id="'+it.id+'">'+
       '<div class="tg" data-tg="'+it.id+'">✓</div>'+
-      '<div class="pn">'+esc(it.name)+'<small>هر بیمار '+fmt(it.per)+' '+esc(it.unit||'')+' · موجودی '+fmt(sm[it.id])+'</small></div>'+
-      '<div class="pq"><div class="minus">−'+fmt(need)+'</div><div class="after'+(bad?' bad':'')+'">باقی: '+fmt(after)+'</div></div>'+
+      '<div class="pn">'+esc(it.name)+'<small>هر بیمار '+fmt(it.per)+' '+esc(it.unit||'')+' · موجودی '+stockDisp+'</small></div>'+
+      '<div class="pq"><div class="minus">−'+fmt(need)+(it.unit?' '+esc(it.unit):'')+'</div><div class="after'+(bad?' bad':'')+'">باقی: '+fmt(after)+(it.unit?' '+esc(it.unit):'')+afterPack+'</div></div>'+
       '</div>';
   }).join('')||'<div style="padding:14px;text-align:center;color:var(--muted)">قلمی با مصرف هر بیمار نداری</div>';
   box.querySelectorAll('[data-tg]').forEach(function(t){t.onclick=function(){var id=t.dataset.tg;sessExclude[id]=!sessExclude[id];renderSessPreview();};});
@@ -762,20 +798,53 @@ document.getElementById('sessSave').onclick=function(){
 
 /* ---- generic move: receive / out / adjust ---- */
 var moveKind='in',moveItemId=null;
+function updateMovePackUI(){
+  var id=moveItemId||document.getElementById('mItem').value;
+  var it=id?state.items.find(function(x){return x.id===id;}):null;
+  var pw=document.getElementById('mPackWrap');
+  var ph=document.getElementById('mPackHint');
+  var pl=document.getElementById('mPackLabel');
+  var pq=document.getElementById('mPackQty');
+  if(it&&it.packSize>0&&moveKind==='in'){
+    var packLabel=it.packUnit||'بسته';
+    pw.style.display='block';
+    ph.textContent='یا تعداد '+packLabel+' وارد کن (هر '+packLabel+' = '+fmt(it.packSize)+' '+esc(it.unit||'')+'):';
+    pl.textContent=packLabel;
+    pq.value='';
+    pq.oninput=function(){
+      var n=pnum(pq.value);
+      if(n>0)document.getElementById('mQty').value=n*it.packSize;
+    };
+  }else{
+    pw.style.display='none';
+    pq.oninput=null;
+  }
+}
 function openMove(kind,itemId){
   moveKind=kind;moveItemId=itemId||null;
   var titles={in:'دریافت کالا',out:'مصرف دستی',adjust:'اصلاح موجودی'};
   document.getElementById('moveTitle').textContent=titles[kind];
-  var qtyLbl={in:'تعداد دریافتی',out:'تعداد مصرف‌شده',adjust:'موجودی صحیح (عدد نهایی)'};
+  var qtyLbl={in:'مقدار دریافتی',out:'مقدار مصرف‌شده',adjust:'موجودی صحیح (عدد نهایی)'};
   document.getElementById('mQtyLbl').textContent=qtyLbl[kind];
   var sel=document.getElementById('mItem');var wrap=document.getElementById('moveItemWrap');
   if(itemId){wrap.style.display='none';}
-  else{wrap.style.display='block';sel.innerHTML=state.items.map(function(it){return '<option value="'+it.id+'">'+esc(it.name)+'</option>';}).join('');}
+  else{
+    wrap.style.display='block';
+    sel.innerHTML=state.items.map(function(it){return '<option value="'+it.id+'">'+esc(it.name)+'</option>';}).join('');
+    sel.onchange=updateMovePackUI;
+  }
   var tj=todayJ();fillDateSelects('mY','mM','mD',tj[0],tj[1],tj[2]);
-  document.getElementById('mQty').value='';document.getElementById('mNote').value='';
+  document.getElementById('mQty').value='';
+  document.getElementById('mNote').value='';
+  document.getElementById('mPackQty').value='';
   var ah=document.getElementById('mAdjustHint');
-  if(kind==='adjust'&&itemId){var cur=stockMap()[itemId]||0;ah.style.display='block';ah.textContent='موجودی فعلی: '+fmt(cur)+' — عدد نهایی صحیح را وارد کن، تفاوت اصلاح می‌شود.';}
-  else ah.style.display='none';
+  if(kind==='adjust'&&itemId){
+    var it=state.items.find(function(x){return x.id===itemId;});
+    var cur=stockMap()[itemId]||0;
+    ah.style.display='block';
+    ah.textContent='موجودی فعلی: '+fmtStock(it,cur)+' — عدد نهایی صحیح ('+esc((it&&it.unit)||'واحد')+') را وارد کن، تفاوت اصلاح می‌شود.';
+  }else ah.style.display='none';
+  updateMovePackUI();
   openSheet('moveSheet');
 }
 document.getElementById('recvBtn').onclick=function(){if(!state.items.length)return toast('اول یک قلم اضافه کن');openMove('in',null);};
@@ -809,7 +878,13 @@ function renderKardex(id){
   var it=state.items.find(function(x){return x.id===id;});if(!it)return;
   document.getElementById('kxTitle').textContent=it.name;
   var s=stockMap()[id]||0;var isLow=s<=0||(it.lowAt>0&&s<=it.lowAt);
-  document.getElementById('kxHead').innerHTML='<div class="item" style="margin-bottom:12px"><div class="info"><div class="meta">'+(it.per>0?('هر بیمار '+fmt(it.per)+' '+esc(it.unit||'')):'مصرف دستی')+' · حد هشدار '+fmt(it.lowAt||0)+'</div></div><div class="amount"><div class="q'+(isLow?' low':'')+'">'+fmt(s)+'</div><div class="u">'+esc(it.unit||'موجودی')+'</div></div></div>';
+  var kxPackStr=it.packSize>0?(' · '+packInfo(it,s)):'';
+  document.getElementById('kxHead').innerHTML='<div class="item" style="margin-bottom:12px"><div class="info">'+
+    '<div class="meta">'+(it.per>0?('هر بیمار '+fmt(it.per)+' '+esc(it.unit||'')):'مصرف دستی')+' · حد هشدار '+fmt(it.lowAt||0)+'</div>'+
+    (it.packSize>0?'<div class="meta" style="margin-top:2px">هر '+esc(it.packUnit||'بسته')+' = '+fmt(it.packSize)+' '+esc(it.unit||'')+'</div>':'')+
+    '</div><div class="amount"><div class="q'+(isLow?' low':'')+'">'+fmt(s)+'</div><div class="u">'+esc(it.unit||'موجودی')+'</div>'+
+    (it.packSize>0?'<div class="u" style="color:var(--accent-deep);font-size:10px">'+esc(packInfo(it,s))+'</div>':'')+
+    '</div></div>';
   var mv=state.moves.filter(function(m){return m.itemId===id;}).slice().sort(function(a,b){return a.gkey-b.gkey||a.ts-b.ts;});
   var bal=0;var rows=mv.map(function(m){bal+=m.delta;var k=KIND[m.kind]||{t:m.kind,ic:'•',bg:'#ECEEEF'};
     var lbl=k.t+(m.kind==='session'&&m.patients?(' ('+fa(m.patients)+' بیمار)'):'');
@@ -978,7 +1053,8 @@ function renderBarChart(el,items,sm){
     return '<div class="bar-row">'+
       '<div class="bar-label" title="'+esc(it.name)+'">'+esc(it.name)+'</div>'+
       '<div class="bar-wrap"><div class="bar-fill '+cls+'" style="width:'+pct+'%"></div>'+thLine+'</div>'+
-      '<div class="bar-val '+cls+'">'+fmt(sm[it.id])+(it.unit?' '+esc(it.unit):'')+'</div>'+
+      '<div class="bar-val '+cls+'" style="flex:0 0 70px;font-size:11px">'+fmt(sm[it.id])+(it.unit?' '+esc(it.unit):'')+
+        (it.packSize>0?'<div style="font-size:10px;color:var(--muted);font-weight:600">'+esc(packInfo(it,sm[it.id]))+'</div>':'')+'</div>'+
       '</div>';
   }).join('');
   el.innerHTML='<div class="bar-chart">'+rows+'</div>'+
@@ -1050,15 +1126,16 @@ document.getElementById('mnExcel').onclick=function(){
 
   // Sheet 1: current inventory
   var wsData=[
-    ['نام کالا','دسته','واحد','موجودی فعلی','مصرف هر بیمار','حد هشدار','وضعیت']
+    ['نام کالا','دسته','واحد','موجودی فعلی','معادل بسته','مصرف هر بیمار','اندازه بسته','نام بسته','حد هشدار','وضعیت']
   ];
   state.items.forEach(function(it){
     var s=sm[it.id];
     var status=s<=0?'تمام شده':(it.lowAt>0&&s<=it.lowAt?'رو به اتمام':'کافی');
-    wsData.push([it.name,it.cat||'',it.unit||'',s,it.per||0,it.lowAt||0,status]);
+    var packEq=it.packSize>0?(Math.round(s/it.packSize*100)/100)+' '+it.packUnit:'';
+    wsData.push([it.name,it.cat||'',it.unit||'',s,packEq,it.per||0,it.packSize||'',it.packUnit||'',it.lowAt||0,status]);
   });
   var ws1=XLSX.utils.aoa_to_sheet(wsData);
-  ws1['!cols']=[{wch:22},{wch:12},{wch:10},{wch:12},{wch:14},{wch:12},{wch:12}];
+  ws1['!cols']=[{wch:22},{wch:12},{wch:10},{wch:12},{wch:14},{wch:14},{wch:12},{wch:10},{wch:12},{wch:12}];
 
   // Sheet 2: movement history
   var mvData=[
@@ -1101,10 +1178,11 @@ document.getElementById('mnPdf').onclick=function(){
     var isOut=s<=0;var isLow=!isOut&&it.lowAt>0&&s<=it.lowAt;
     var bg=isOut?'#fdecea':(isLow?'#fff3e0':'#f9fbe7');
     var statusTxt=isOut?'تمام':(isLow?'کم':'کافی');
+    var packDisp=it.packSize>0?'<br><small style="color:#888">'+packInfo(it,s)+'</small>':'';
     return '<tr style="background:'+bg+'"><td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;font-weight:700">'+esc(it.name)+'</td>'+
       '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center">'+esc(it.cat||'—')+'</td>'+
       '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center;direction:ltr">'+it.unit+'</td>'+
-      '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center;font-weight:800;direction:ltr">'+s+'</td>'+
+      '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center;font-weight:800;direction:ltr">'+s+packDisp+'</td>'+
       '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center">'+statusTxt+'</td></tr>';
   }).join('');
 
