@@ -241,6 +241,14 @@
   .pie-leg-item{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;}
   .pie-dot{width:14px;height:14px;border-radius:4px;flex:0 0 14px;}
 
+  /* inline dose override */
+  .dose-edit{background:var(--brand-soft);border:1.5px solid var(--brand);border-radius:10px;padding:8px 10px;margin-top:6px;display:flex;align-items:center;gap:8px;}
+  .dose-edit label{font-size:12px;font-weight:700;color:var(--brand-deep);white-space:nowrap;}
+  .dose-edit input{flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:14px;font-weight:800;outline:none;direction:ltr;text-align:right;}
+  .dose-edit .dose-unit{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap;}
+  .prow{cursor:pointer;}
+  .prow:active{background:var(--brand-soft);}
+
   /* toast */
   .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);
     background:var(--ink);color:#fff;padding:10px 18px;border-radius:30px;font-size:13.5px;font-weight:700;
@@ -336,6 +344,7 @@
   <div class="ptable" id="sPrev"></div>
   <div id="sWarn"></div>
   <div class="field" style="margin-top:12px"><label>توضیح (اختیاری)</label><input id="sNote" placeholder="مثلاً نوبت صبح" autocomplete="off"></div>
+  <div class="hint" style="margin-bottom:6px">💡 روی هر قلم بزن تا دوز آن بیمار را برای این نوبت تغییر دهی</div>
   <button class="save-btn" id="sessSave">ثبت و کسر از انبار</button>
 </div>
 
@@ -605,12 +614,12 @@ function initItemReorder(list){
   });
 }
 
-/* ============ sheets + unified Android Back navigation ============ */
-// History layout (bottom→top): [base] [guard] [sheet1] [sheet2] …
-// base  = {anbarApp, stack:[], base:true}   — never popped past
-// guard = {anbarApp, stack:[], guard:true}  — single exit barrier
-// sheet = {anbarApp, stack:[…]}             — one per sheet open
-var navStack=[],exitArmed=false,exitTimer=null;
+/* ============ sheets + Android Back navigation ============ */
+// History model (bottom→top): [home] [sheet1] [sheet2] …
+// home  = {anbarApp, stack:[]}   — replaceState on boot
+// sheet = {anbarApp, stack:[…]}  — one pushState per sheet
+// When back is pressed at home state the browser/Android closes the app.
+var navStack=[];
 function applyNav(){
   document.querySelectorAll('.sheet').forEach(function(s){s.classList.remove('show');});
   var id=navStack[navStack.length-1];
@@ -633,33 +642,14 @@ function openSheet(id,mode){
 function closeSheets(){if(navStack.length)history.back();}
 function goHome(){if(navStack.length)writeRoute([],false);else applyNav();}
 function initHistory(){
-  // [base] [guard] — two entries so first back always hits guard, not base
-  history.replaceState({anbarApp:true,stack:[],base:true},'');
-  history.pushState({anbarApp:true,stack:[],guard:true},'');
+  // Single home entry — pressing back here lets Android close the app naturally
+  history.replaceState({anbarApp:true,stack:[]},'');
 }
 window.addEventListener('popstate',function(e){
   var st=e.state;
-  if(!st||!st.anbarApp){return;} // not our entry, ignore
+  if(!st||!st.anbarApp){return;}
   navStack=Array.isArray(st.stack)?st.stack.slice():[];
   applyNav();
-  if(st.base){
-    // Popped all the way to base: re-insert guard so back works again
-    history.pushState({anbarApp:true,stack:[],guard:true},'');
-    return;
-  }
-  if(st.guard&&!navStack.length){
-    // Hit the guard with no sheets: double-back exit
-    if(exitArmed){
-      exitArmed=false;clearTimeout(exitTimer);
-      // Actually exit: go back past base to browser's previous page
-      history.back();
-      return;
-    }
-    exitArmed=true;
-    toast('برای خروج، دوباره دکمه برگشت را بزن');
-    clearTimeout(exitTimer);
-    exitTimer=setTimeout(function(){exitArmed=false;},2200);
-  }
 });
 document.getElementById('scrim').addEventListener('click',closeSheets);
 document.querySelectorAll('[data-close]').forEach(function(b){b.addEventListener('click',closeSheets);});
@@ -742,9 +732,9 @@ document.getElementById('itemDel').onclick=function(){
 };
 
 /* ---- session (auto deduct) ---- */
-var sessExclude={};
+var sessExclude={},sessOverride={};
 function openSession(){
-  sessExclude={};
+  sessExclude={};sessOverride={};
   var tj=todayJ();fillDateSelects('sY','sM','sD',tj[0],tj[1],tj[2]);
   document.getElementById('sPat').value='';document.getElementById('sNote').value='';
   var has=state.items.some(function(it){return it.per>0;});
@@ -754,28 +744,73 @@ function openSession(){
   setTimeout(function(){document.getElementById('sPat').focus();},250);
 }
 function sessItems(){return state.items.filter(function(it){return it.per>0;});}
+function effPer(it){return (sessOverride[it.id]!=null)?sessOverride[it.id]:it.per;}
 function renderSessPreview(){
   var pat=pnum(document.getElementById('sPat').value);
   var sm=stockMap();
   var its=sessItems();
   var box=document.getElementById('sPrev');
   box.innerHTML=its.map(function(it){
-    var need=it.per*pat;var off=sessExclude[it.id];
+    var per=effPer(it);var need=per*pat;var off=sessExclude[it.id];
     var after=sm[it.id]-(off?0:need);var bad=after<0;
     var afterPack=it.packSize>0?(' · '+packInfo(it,Math.max(0,after))):'';
     var stockDisp=it.packSize>0?fmtStock(it,sm[it.id]):fmt(sm[it.id])+(it.unit?' '+it.unit:'');
-    return '<div class="prow'+(off?' off':'')+'" data-id="'+it.id+'">'+
+    var overrideActive=sessOverride[it.id]!=null;
+    var doseEditId='dose-edit-'+it.id;
+    var row='<div class="prow'+(off?' off':'')+'" data-id="'+it.id+'" data-dose-row="'+it.id+'" style="flex-wrap:wrap">'+
       '<div class="tg" data-tg="'+it.id+'">✓</div>'+
-      '<div class="pn">'+esc(it.name)+'<small>هر بیمار '+fmt(it.per)+' '+esc(it.unit||'')+' · موجودی '+stockDisp+'</small></div>'+
-      '<div class="pq"><div class="minus">−'+fmt(need)+(it.unit?' '+esc(it.unit):'')+'</div><div class="after'+(bad?' bad':'')+'">باقی: '+fmt(after)+(it.unit?' '+esc(it.unit):'')+afterPack+'</div></div>'+
+      '<div class="pn">'+esc(it.name)+
+        '<small>هر بیمار <span style="'+(overrideActive?'color:var(--danger);text-decoration:line-through':'')+' ">'+fmt(it.per)+'</span>'+
+        (overrideActive?' <b style="color:var(--brand-deep)">'+fmt(per)+'</b>':'')+
+        ' '+esc(it.unit||'')+' · موجودی '+stockDisp+'</small></div>'+
+      '<div class="pq"><div class="minus">−'+fmt(need)+(it.unit?' '+esc(it.unit):'')+'</div>'+
+        '<div class="after'+(bad?' bad':'')+'">باقی: '+fmt(after)+(it.unit?' '+esc(it.unit):'')+afterPack+'</div></div>'+
+      '<div id="'+doseEditId+'" class="dose-edit" style="width:100%;display:none">'+
+        '<label>دوز هر بیمار:</label>'+
+        '<input type="number" inputmode="decimal" step="any" class="dose-inp" data-dose-id="'+it.id+'" value="'+per+'" style="max-width:100px">'+
+        '<span class="dose-unit">'+esc(it.unit||'')+'</span>'+
+        '<button style="font-size:12px;color:var(--danger);padding:2px 8px;border:1px solid var(--line);border-radius:7px;background:var(--card)" data-dose-reset="'+it.id+'">↺ پیش‌فرض</button>'+
+      '</div>'+
       '</div>';
+    return row;
   }).join('')||'<div style="padding:14px;text-align:center;color:var(--muted)">قلمی با مصرف هر بیمار نداری</div>';
-  box.querySelectorAll('[data-tg]').forEach(function(t){t.onclick=function(){var id=t.dataset.tg;sessExclude[id]=!sessExclude[id];renderSessPreview();};});
+
+  // wire toggle (tg button = include/exclude)
+  box.querySelectorAll('[data-tg]').forEach(function(t){
+    t.onclick=function(e){e.stopPropagation();var id=t.dataset.tg;sessExclude[id]=!sessExclude[id];renderSessPreview();};
+  });
+  // wire tap row = toggle dose-edit panel
+  box.querySelectorAll('[data-dose-row]').forEach(function(row){
+    row.onclick=function(e){
+      if(e.target.closest('[data-tg]')||e.target.closest('.dose-edit'))return;
+      var id=row.dataset.doseRow;
+      var panel=document.getElementById('dose-edit-'+id);
+      if(!panel)return;
+      var visible=panel.style.display!=='none';
+      box.querySelectorAll('.dose-edit').forEach(function(p){p.style.display='none';});
+      if(!visible)panel.style.display='flex';
+    };
+  });
+  // wire dose input changes
+  box.querySelectorAll('.dose-inp').forEach(function(inp){
+    inp.oninput=function(){
+      var id=inp.dataset.doseId;var v=pnum(inp.value);
+      if(v>0)sessOverride[id]=v;else delete sessOverride[id];
+      // re-render only the numbers, not the whole box (avoid focus loss)
+      // just re-render after brief delay
+      clearTimeout(inp._rt);inp._rt=setTimeout(renderSessPreview,400);
+    };
+  });
+  // wire reset buttons
+  box.querySelectorAll('[data-dose-reset]').forEach(function(btn){
+    btn.onclick=function(e){e.stopPropagation();var id=btn.dataset.doseReset;delete sessOverride[id];renderSessPreview();};
+  });
+
   // warnings
   var w=document.getElementById('sWarn');var bads=[];
-  its.forEach(function(it){if(sessExclude[it.id])return;if(sm[it.id]-it.per*pat<0)bads.push(it.name);});
-  if(pat>0&&bads.length)w.innerHTML='<div class="warnbox">⚠️ موجودی این اقلام کافی نیست و منفی می‌شود: '+esc(bads.join('، '))+'. می‌توانی ثبت کنی ولی بهتر است اول دریافت بزنی.</div>';
-  else if(pat>0)w.innerHTML='<div class="okbox">✓ موجودی برای همهٔ اقلام کافی است.</div>';
+  its.forEach(function(it){if(sessExclude[it.id])return;var per=effPer(it);if(sm[it.id]-per*pat<0)bads.push(it.name);});
+  if(pat>0&&bads.length)w.innerHTML='<div class="warnbox">⚠️ موجودی این اقلام کافی نیست: '+esc(bads.join('، '))+'. می‌توانی ثبت کنی ولی بهتر است اول دریافت بزنی.</div>';
+  else if(pat>0&&its.length)w.innerHTML='<div class="okbox">✓ موجودی برای همهٔ اقلام کافی است.</div>';
   else w.innerHTML='';
 }
 document.getElementById('sPat').oninput=renderSessPreview;
@@ -789,10 +824,12 @@ document.getElementById('sessSave').onclick=function(){
   if(!its.length)return toast('هیچ قلمی برای کسر انتخاب نشده');
   var sid=uid();var ts=Date.now();
   its.forEach(function(it){
-    var need=it.per*pat;
-    state.moves.push({id:uid(),itemId:it.id,delta:-need,kind:'session',sid:sid,patients:pat,y:dt.y,m:dt.m,d:dt.d,gkey:gkey,ts:ts,note:note});
+    var perUsed=effPer(it);var need=perUsed*pat;
+    var moveNote=note+(sessOverride[it.id]!=null?' [دوز دستی: '+fmt(perUsed)+' '+it.unit+']':'');
+    state.moves.push({id:uid(),itemId:it.id,delta:-need,kind:'session',sid:sid,patients:pat,y:dt.y,m:dt.m,d:dt.d,gkey:gkey,ts:ts,note:moveNote.trim()});
   });
   state.sessions.push({id:sid,patients:pat,y:dt.y,m:dt.m,d:dt.d,gkey:gkey,ts:ts,note:note,lines:its.length});
+  sessOverride={};
   persist().then(function(){render();closeSheets();toast('ثبت شد — موجودی به‌روزرسانی شد ✓');});
 };
 
@@ -1242,6 +1279,16 @@ window.addEventListener('unhandledrejection',function(e){console.error(e.reason)
 initHistory();
 openDB().then(load).then(function(){render();}).catch(function(){state=normalizeState(localRead());render();toast('ذخیره‌سازی پشتیبان فعال شد');});
 if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0){window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').then(function(reg){reg.update().catch(function(){});}).catch(function(){});});}
+
+// Capacitor Android hardware back button
+document.addEventListener('deviceready',function(){
+  if(window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App){
+    window.Capacitor.Plugins.App.addListener('backButton',function(){
+      if(navStack.length){history.back();}
+      else{window.Capacitor.Plugins.App.exitApp();}
+    });
+  }
+},false);
 </script>
 </body>
 </html>
