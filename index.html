@@ -183,7 +183,7 @@
   .prow .pq .after.bad{color:var(--danger);font-weight:800;}
   .prow.off{opacity:.4;}
   .prow .tg{flex:0 0 auto;width:24px;height:24px;border-radius:7px;border:1.5px solid var(--brand);display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;background:var(--brand);font-weight:800;}
-  .prow.off .tg{background:#fff;color:transparent;border-color:var(--line);}
+  .prow.off .tg{background:var(--card);color:transparent;border-color:var(--line);}
   .warnbox{background:#F4E7E7;color:var(--danger);border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:700;margin-bottom:10px;}
   .okbox{background:var(--brand-soft);color:var(--brand-deep);border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:700;margin-bottom:10px;}
 
@@ -226,7 +226,7 @@
   .bar-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);}
   .bar-row:last-child{border-bottom:0;}
   .bar-label{flex:0 0 110px;font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;}
-  .bar-wrap{flex:1;background:var(--bg);border-radius:8px;height:20px;position:relative;overflow:hidden;}
+  .bar-wrap{flex:1;background:var(--bg);border-radius:8px;height:20px;position:relative;overflow:hidden;direction:ltr;}
   .bar-fill{height:100%;border-radius:8px;transition:width .4s ease;min-width:3px;}
   .bar-fill.ok{background:linear-gradient(90deg,#4CAF50,#66BB6A);}
   .bar-fill.low{background:linear-gradient(90deg,#FF9800,#FFA726);}
@@ -353,10 +353,10 @@
   <h2><span id="kxTitle">کاردکس</span><span class="x" data-close>✕</span></h2>
   <div id="kxHead"></div>
   <div class="bar" style="position:static;background:none;border:0;padding:0 0 12px;backdrop-filter:none;margin:0">
-    <button id="kxRecv" style="border:1px solid var(--line);background:#fff;color:var(--brand-deep);border-radius:11px;padding:11px 6px;flex:1;font-weight:700;font-size:12.5px;display:flex;flex-direction:column;gap:2px;align-items:center"><span style="font-size:16px">📦</span>دریافت</button>
-    <button id="kxOut" style="border:1px solid var(--line);background:#fff;color:var(--brand-deep);border-radius:11px;padding:11px 6px;flex:1;font-weight:700;font-size:12.5px;display:flex;flex-direction:column;gap:2px;align-items:center"><span style="font-size:16px">➖</span>مصرف دستی</button>
-    <button id="kxAdj" style="border:1px solid var(--line);background:#fff;color:var(--brand-deep);border-radius:11px;padding:11px 6px;flex:1;font-weight:700;font-size:12.5px;display:flex;flex-direction:column;gap:2px;align-items:center"><span style="font-size:16px">✎</span>اصلاح</button>
-    <button id="kxEdit" style="border:1px solid var(--line);background:#fff;color:var(--brand-deep);border-radius:11px;padding:11px 6px;flex:1;font-weight:700;font-size:12.5px;display:flex;flex-direction:column;gap:2px;align-items:center"><span style="font-size:16px">⚙️</span>ویرایش قلم</button>
+    <button id="kxRecv" style="border:1px solid var(--line);background:var(--card);color:var(--brand-deep);border-radius:11px;padding:11px 6px;flex:1;font-weight:700;font-size:12.5px;display:flex;flex-direction:column;gap:2px;align-items:center"><span style="font-size:16px">📦</span>دریافت</button>
+    <button id="kxOut" style="border:1px solid var(--line);background:var(--card);color:var(--brand-deep);border-radius:11px;padding:11px 6px;flex:1;font-weight:700;font-size:12.5px;display:flex;flex-direction:column;gap:2px;align-items:center"><span style="font-size:16px">➖</span>مصرف دستی</button>
+    <button id="kxAdj" style="border:1px solid var(--line);background:var(--card);color:var(--brand-deep);border-radius:11px;padding:11px 6px;flex:1;font-weight:700;font-size:12.5px;display:flex;flex-direction:column;gap:2px;align-items:center"><span style="font-size:16px">✎</span>اصلاح</button>
+    <button id="kxEdit" style="border:1px solid var(--line);background:var(--card);color:var(--brand-deep);border-radius:11px;padding:11px 6px;flex:1;font-weight:700;font-size:12.5px;display:flex;flex-direction:column;gap:2px;align-items:center"><span style="font-size:16px">⚙️</span>ویرایش قلم</button>
   </div>
   <div class="sec-title"><span>گردش این کالا</span></div>
   <div id="kxList"></div>
@@ -576,6 +576,10 @@ function initItemReorder(list){
 }
 
 /* ============ sheets + unified Android Back navigation ============ */
+// History layout (bottom→top): [base] [guard] [sheet1] [sheet2] …
+// base  = {anbarApp, stack:[], base:true}   — never popped past
+// guard = {anbarApp, stack:[], guard:true}  — single exit barrier
+// sheet = {anbarApp, stack:[…]}             — one per sheet open
 var navStack=[],exitArmed=false,exitTimer=null;
 function applyNav(){
   document.querySelectorAll('.sheet').forEach(function(s){s.classList.remove('show');});
@@ -596,23 +600,35 @@ function openSheet(id,mode){
   else next=navStack.concat(id);
   writeRoute(next,false);
 }
-function hideAllSheets(){navStack=[];applyNav();}
 function closeSheets(){if(navStack.length)history.back();}
 function goHome(){if(navStack.length)writeRoute([],false);else applyNav();}
 function initHistory(){
-  history.replaceState({anbarApp:true,stack:[]},'');
+  // [base] [guard] — two entries so first back always hits guard, not base
+  history.replaceState({anbarApp:true,stack:[],base:true},'');
   history.pushState({anbarApp:true,stack:[],guard:true},'');
 }
 window.addEventListener('popstate',function(e){
   var st=e.state;
-  if(st&&st.anbarApp){
-    navStack=Array.isArray(st.stack)?st.stack.slice():[];applyNav();
-    if(!navStack.length&&!st.guard){
-      if(exitArmed){exitArmed=false;history.back();return;}
-      exitArmed=true;toast('برای خروج، دوباره دکمه برگشت را بزن');
-      clearTimeout(exitTimer);exitTimer=setTimeout(function(){exitArmed=false;},2200);
-      history.pushState({anbarApp:true,stack:[],guard:true},'');
+  if(!st||!st.anbarApp){return;} // not our entry, ignore
+  navStack=Array.isArray(st.stack)?st.stack.slice():[];
+  applyNav();
+  if(st.base){
+    // Popped all the way to base: re-insert guard so back works again
+    history.pushState({anbarApp:true,stack:[],guard:true},'');
+    return;
+  }
+  if(st.guard&&!navStack.length){
+    // Hit the guard with no sheets: double-back exit
+    if(exitArmed){
+      exitArmed=false;clearTimeout(exitTimer);
+      // Actually exit: go back past base to browser's previous page
+      history.back();
+      return;
     }
+    exitArmed=true;
+    toast('برای خروج، دوباره دکمه برگشت را بزن');
+    clearTimeout(exitTimer);
+    exitTimer=setTimeout(function(){exitArmed=false;},2200);
   }
 });
 document.getElementById('scrim').addEventListener('click',closeSheets);
@@ -674,7 +690,14 @@ document.getElementById('itemSave').onclick=function(){
     state.items.push({id:id,name:name,unit:unit,cat:cat,per:per,lowAt:lowAt});
     if(stock!==0){var tj=todayJ();state.moves.push({id:uid(),itemId:id,delta:stock,kind:'open',y:tj[0],m:tj[1],d:tj[2],gkey:jKey(tj[0],tj[1],tj[2]),ts:Date.now(),note:'موجودی اولیه'});}
   }
-  persist().then(function(){render();closeSheets();toast('ذخیره شد ✓');});
+  var savedId=editItemId;
+  persist().then(function(){
+    render();
+    // if we came from kardex, refresh it so the header shows updated name/threshold
+    if(savedId&&kxId===savedId)renderKardex(savedId);
+    closeSheets();
+    toast('ذخیره شد ✓');
+  });
 };
 document.getElementById('itemDel').onclick=function(){
   if(!editItemId)return;
@@ -774,7 +797,13 @@ document.getElementById('moveSave').onclick=function(){
 
 /* ---- kardex ---- */
 var kxId=null;
-var KIND={open:{t:'موجودی اولیه',ic:'🟢',bg:'#F1F2F3'},in:{t:'دریافت',ic:'📦',bg:'#F1F2F3'},out:{t:'مصرف دستی',ic:'➖',bg:'#F3E9E7'},session:{t:'تزریق',ic:'💉',bg:'#F3E9E7'},adjust:{t:'اصلاح',ic:'✎',bg:'#F1F2F3'}};
+var KIND={
+  open:{t:'موجودی اولیه',ic:'🟢',bg:'var(--cream)'},
+  in:{t:'دریافت',ic:'📦',bg:'var(--cream)'},
+  out:{t:'مصرف دستی',ic:'➖',bg:'var(--teal-soft)'},
+  session:{t:'تزریق',ic:'💉',bg:'var(--teal-soft)'},
+  adjust:{t:'اصلاح',ic:'✎',bg:'var(--cream)'}
+};
 function openKardex(id){kxId=id;renderKardex(id);openSheet('kxSheet');}
 function renderKardex(id){
   var it=state.items.find(function(x){return x.id===id;});if(!it)return;
@@ -832,14 +861,16 @@ document.getElementById('menuBtn').onclick=function(){openSheet('menuSheet');};
 document.getElementById('mnReport').onclick=function(){openReport(true);};
 document.getElementById('mnPrint').onclick=function(){goHome();setTimeout(function(){window.print();},250);};
 document.getElementById('mnCsv').onclick=function(){
+  closeSheets();
   var sm=stockMap();
   var rows=[['نام','دسته','واحد','موجودی','مصرف هر بیمار','حد هشدار']];
   state.items.forEach(function(it){rows.push([it.name,it.cat||'',it.unit||'',sm[it.id],it.per||0,it.lowAt||0]);});
   var csv='\ufeff'+rows.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(',');}).join('\r\n');
   var t=todayJ();dl(new Blob([csv],{type:'text/csv'}),'موجودی-انبار-'+t[0]+'-'+t[1]+'-'+t[2]+'.csv');
-  toast('فایل CSV ساخته شد');
+  setTimeout(function(){toast('فایل CSV ساخته شد');},150);
 };
 document.getElementById('mnShare').onclick=function(){
+  closeSheets();
   var sm=stockMap();
   var tj=todayJ();
   var lines=['وضعیت انبار پزشکی — '+fa(tj[0])+'/'+fa(String(tj[1]).padStart(2,'0'))+'/'+fa(String(tj[2]).padStart(2,'0')),''];
@@ -854,10 +885,12 @@ document.getElementById('mnShare').onclick=function(){
   else toast('مرورگر از اشتراک‌گذاری پشتیبانی نمی‌کند');
 };
 document.getElementById('mnBackup').onclick=function(){
+  closeSheets();
   var blob=new Blob([JSON.stringify(state)],{type:'application/json'});
-  var t=todayJ();dl(blob,'پشتیبان-انبار-'+t[0]+'-'+t[1]+'-'+t[2]+'.json');toast('پشتیبان ذخیره شد');
+  var t=todayJ();dl(blob,'پشتیبان-انبار-'+t[0]+'-'+t[1]+'-'+t[2]+'.json');
+  setTimeout(function(){toast('پشتیبان ذخیره شد');},150);
 };
-document.getElementById('mnRestore').onclick=function(){document.getElementById('restoreIn').click();};
+document.getElementById('mnRestore').onclick=function(){closeSheets();setTimeout(function(){document.getElementById('restoreIn').click();},200);};
 document.getElementById('restoreIn').onchange=function(e){
   var f=e.target.files[0];if(!f)return;var r=new FileReader();
   r.onload=function(){try{var d=JSON.parse(r.result);if(!d||!Array.isArray(d.items))throw 0;
@@ -904,8 +937,8 @@ document.querySelectorAll('[data-ctab]').forEach(function(t){
   });
 });
 
-function openChart(){renderChart();openSheet('chartSheet');}
-document.getElementById('mnChart').onclick=function(){closeSheets();setTimeout(openChart,50);};
+function openChart(fromMenu){renderChart();openSheet('chartSheet',fromMenu?'replace':null);}
+document.getElementById('mnChart').onclick=function(){openChart(true);};
 
 function renderChart(){
   var sm=stockMap();
@@ -941,7 +974,7 @@ function renderBarChart(el,items,sm){
     var cls=isOut?'out':(isLow?'low':'ok');
     var pct=Math.min(100,Math.round(s/maxStock*100));
     var thPct=it.lowAt>0?Math.min(100,Math.round(it.lowAt/maxStock*100)):0;
-    var thLine=thPct>0?'<div class="bar-threshold" style="right:'+thPct+'%"></div>':'';
+    var thLine=thPct>0?'<div class="bar-threshold" style="left:'+thPct+'%"></div>':'';
     return '<div class="bar-row">'+
       '<div class="bar-label" title="'+esc(it.name)+'">'+esc(it.name)+'</div>'+
       '<div class="bar-wrap"><div class="bar-fill '+cls+'" style="width:'+pct+'%"></div>'+thLine+'</div>'+
@@ -1011,6 +1044,7 @@ function renderTopChart(el,sm){
 /* ============ Excel Export (SheetJS) ============ */
 document.getElementById('mnExcel').onclick=function(){
   if(!window.XLSX){toast('کتابخانه اکسل بارگذاری نشده');return;}
+  closeSheets();
   var sm=stockMap();
   var tj=todayJ();
 
@@ -1045,13 +1079,14 @@ document.getElementById('mnExcel').onclick=function(){
   XLSX.utils.book_append_sheet(wb,'گردش کالا',ws2);
   var fname='انبار-پزشکی-'+tj[0]+'-'+tj[1]+'-'+tj[2]+'.xlsx';
   XLSX.writeFile(wb,fname);
-  toast('فایل Excel ذخیره شد ✓');
+  setTimeout(function(){toast('فایل Excel ذخیره شد ✓');},150);
 };
 
 /* ============ PDF Export (html2canvas + jsPDF) ============ */
 document.getElementById('mnPdf').onclick=function(){
   if(!window.jspdf||!window.html2canvas){toast('کتابخانه PDF بارگذاری نشده');return;}
-  toast('در حال ساخت PDF...');
+  closeSheets();
+  setTimeout(function(){toast('در حال ساخت PDF...');},150);
   var sm=stockMap();
   var tj=todayJ();
   var dateStr=tj[0]+'/'+String(tj[1]).padStart(2,'0')+'/'+String(tj[2]).padStart(2,'0');
