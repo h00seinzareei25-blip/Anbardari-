@@ -11,9 +11,6 @@
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script src="xlsx.min.js"></script>
-<script src="jspdf.min.js"></script>
-<script src="jspdf.autotable.min.js"></script>
-<script src="html2canvas.min.js"></script>
 <title>انبار پزشکی</title>
 <meta name="description" content="مدیریت آفلاین موجودی و مصرف اقلام پزشکی">
 <style>
@@ -534,7 +531,29 @@ function pnum(v){v=parseFloat(en(String(v)).replace(/[،,]/g,''));return isNaN(v
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 
-/* ============ persistence (IndexedDB + localStorage fallback) ============ */
+/* ============ Capacitor Filesystem helpers ============ */
+var CAP_FILE='anbar_data.json';
+function capWrite(data){
+  try{
+    var Cap=window.Capacitor;
+    if(Cap&&Cap.Plugins&&Cap.Plugins.Filesystem){
+      Cap.Plugins.Filesystem.writeFile({path:CAP_FILE,data:btoa(unescape(encodeURIComponent(JSON.stringify(data)))),directory:'DATA',encoding:'base64'}).catch(function(){});
+    }
+  }catch(e){}
+}
+function capRead(){
+  return new Promise(function(res){
+    try{
+      var Cap=window.Capacitor;
+      if(!Cap||!Cap.Plugins||!Cap.Plugins.Filesystem)return res(null);
+      Cap.Plugins.Filesystem.readFile({path:CAP_FILE,directory:'DATA',encoding:'base64'}).then(function(r){
+        try{res(JSON.parse(decodeURIComponent(escape(atob(r.data)))))}catch(e){res(null);}
+      }).catch(function(){res(null);});
+    }catch(e){res(null);}
+  });
+}
+
+/* ============ persistence (IndexedDB + localStorage + Capacitor Filesystem) ============ */
 var DB,STORE='kv',DB_NAME='anbar_pezeshki',LS_KEY='anbar_pezeshki_state_v1',saveQueue=Promise.resolve();
 function normalizeState(v){
   v=(v&&typeof v==='object')?v:{};
@@ -568,10 +587,23 @@ function localRead(){try{return JSON.parse(localStorage.getItem(LS_KEY)||'null')
 function localWrite(v){try{localStorage.setItem(LS_KEY,JSON.stringify(v));return true;}catch(e){return false;}}
 function persist(){
   var snapshot=normalizeState(JSON.parse(JSON.stringify(state)));
-  saveQueue=saveQueue.then(function(){localWrite(snapshot);return dbSet('state',snapshot);}).catch(function(){localWrite(snapshot);});
+  saveQueue=saveQueue.then(function(){
+    localWrite(snapshot);
+    capWrite(snapshot);
+    return dbSet('state',snapshot);
+  }).catch(function(){localWrite(snapshot);capWrite(snapshot);});
   return saveQueue;
 }
-function load(){return dbGet('state').then(function(s){state=normalizeState(s||localRead());if(s)localWrite(state);});}
+function load(){
+  return dbGet('state').then(function(s){
+    if(s){state=normalizeState(s);localWrite(state);return;}
+    // IndexedDB empty: try Capacitor Filesystem first, then localStorage
+    return capRead().then(function(cf){
+      state=normalizeState(cf||localRead());
+      if(cf||localRead())persist(); // re-sync all layers
+    });
+  });
+}
 window.addEventListener('pagehide',function(){localWrite(state);});
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')localWrite(state);});
 
@@ -1312,81 +1344,102 @@ document.getElementById('mnExcel').onclick=function(){
   setTimeout(function(){toast('فایل Excel ذخیره شد ✓');},150);
 };
 
-/* ============ PDF Export (html2canvas + jsPDF) ============ */
+/* ============ PDF Export: print-to-PDF (Persian-safe, no library needed) ============ */
 document.getElementById('mnPdf').onclick=function(){
-  if(!window.jspdf||!window.html2canvas){toast('کتابخانه PDF بارگذاری نشده');return;}
   closeSheets();
-  setTimeout(function(){toast('در حال ساخت PDF...');},150);
+  setTimeout(generatePDF, 300);
+};
+function generatePDF(){
   var sm=stockMap();
   var tj=todayJ();
-  var dateStr=tj[0]+'/'+String(tj[1]).padStart(2,'0')+'/'+String(tj[2]).padStart(2,'0');
-
-  // Build an off-screen printable div
-  var div=document.createElement('div');
-  div.style.cssText='position:fixed;left:-9999px;top:0;width:700px;background:#fff;font-family:Tahoma,Arial,sans-serif;direction:rtl;padding:24px;font-size:13px;color:#111;';
-
-  var kindNames={open:'موجودی اولیه',in:'دریافت',out:'مصرف دستی',session:'تزریق',adjust:'اصلاح'};
-  var rows=state.items.map(function(it){
-    var s=sm[it.id];
-    var isOut=s<=0;var isLow=!isOut&&it.lowAt>0&&s<=it.lowAt;
-    var bg=isOut?'#fdecea':(isLow?'#fff3e0':'#f9fbe7');
-    var statusTxt=isOut?'تمام':(isLow?'کم':'کافی');
-    var packDisp=it.packSize>0?'<br><small style="color:#888">'+packInfo(it,s)+'</small>':'';
-    return '<tr style="background:'+bg+'"><td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;font-weight:700">'+esc(it.name)+'</td>'+
-      '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center">'+esc(it.cat||'—')+'</td>'+
-      '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center;direction:ltr">'+it.unit+'</td>'+
-      '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center;font-weight:800;direction:ltr">'+s+packDisp+'</td>'+
-      '<td style="padding:8px 6px;border-bottom:1px solid #e0e0e0;text-align:center">'+statusTxt+'</td></tr>';
-  }).join('');
+  var dateStr=fa(tj[0])+'/'+fa(String(tj[1]).padStart(2,'0'))+'/'+fa(String(tj[2]).padStart(2,'0'));
 
   var totalItems=state.items.length;
   var lowCount=state.items.filter(function(it){return it.lowAt>0&&sm[it.id]<=it.lowAt;}).length;
   var outCount=state.items.filter(function(it){return sm[it.id]<=0;}).length;
 
-  div.innerHTML=
-    '<div style="border-bottom:3px solid #111;padding-bottom:12px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">'+
-    '<div><div style="font-size:20px;font-weight:900">انبار پزشکی</div><div style="color:#666;font-size:12px;margin-top:2px">گزارش وضعیت موجودی</div></div>'+
-    '<div style="text-align:left;font-size:12px;color:#555">تاریخ: '+dateStr+'</div></div>'+
-    '<div style="display:flex;gap:12px;margin-bottom:16px">'+
-    '<div style="flex:1;background:#f5f5f5;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:900">'+totalItems+'</div><div style="font-size:11px;color:#666">قلم کالا</div></div>'+
-    '<div style="flex:1;background:#fff3e0;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:900;color:#E65100">'+lowCount+'</div><div style="font-size:11px;color:#666">رو به اتمام</div></div>'+
-    '<div style="flex:1;background:#fdecea;border-radius:10px;padding:10px;text-align:center"><div style="font-size:22px;font-weight:900;color:#C62828">'+outCount+'</div><div style="font-size:11px;color:#666">تمام شده</div></div>'+
+  var rows=state.items.map(function(it,i){
+    var s=sm[it.id];
+    var isOut=s<=0;var isLow=!isOut&&it.lowAt>0&&s<=it.lowAt;
+    var bg=isOut?'#fdecea':(isLow?'#fff8e1':'#f1f8e9');
+    var statusTxt=isOut?'تمام شده':(isLow?'رو به اتمام':'کافی');
+    var statusColor=isOut?'#c62828':(isLow?'#e65100':'#2e7d32');
+    var packDisp=it.packSize>0?'<div style="font-size:11px;color:#888;margin-top:2px">'+packInfo(it,s)+'</div>':'';
+    return '<tr style="background:'+bg+'">'+
+      '<td style="padding:9px 8px;border-bottom:1px solid #e8e8e8;font-size:13px;font-weight:700">'+esc(it.name)+'</td>'+
+      '<td style="padding:9px 8px;border-bottom:1px solid #e8e8e8;text-align:center;font-size:12px;color:#555">'+esc(it.cat||'—')+'</td>'+
+      '<td style="padding:9px 8px;border-bottom:1px solid #e8e8e8;text-align:center;font-size:12px">'+esc(it.unit||'—')+'</td>'+
+      '<td style="padding:9px 8px;border-bottom:1px solid #e8e8e8;text-align:center;font-size:14px;font-weight:800">'+fmt(s)+packDisp+'</td>'+
+      '<td style="padding:9px 8px;border-bottom:1px solid #e8e8e8;text-align:center;font-size:12px;font-weight:700;color:'+statusColor+'">'+statusTxt+'</td></tr>';
+  }).join('');
+
+  var html='<!DOCTYPE html><html lang="fa" dir="rtl"><head><meta charset="UTF-8">'+
+    '<style>'+
+    'body{font-family:Tahoma,\'Segoe UI\',Arial,sans-serif;direction:rtl;background:#fff;color:#111;margin:0;padding:20px;font-size:13px;}'+
+    'h1{font-size:20px;font-weight:900;margin:0;}'+
+    '.header{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid #111;padding-bottom:12px;margin-bottom:18px;}'+
+    '.stats{display:flex;gap:12px;margin-bottom:18px;}'+
+    '.stat{flex:1;border-radius:10px;padding:12px;text-align:center;}'+
+    '.stat .n{font-size:24px;font-weight:900;margin-bottom:3px;}'+
+    '.stat .l{font-size:11px;color:#666;}'+
+    'table{width:100%;border-collapse:collapse;}'+
+    'th{background:#eeeeee;padding:10px 8px;font-size:12px;font-weight:800;border-bottom:2px solid #ccc;text-align:right;}'+
+    'th:not(:first-child){text-align:center;}'+
+    'td{vertical-align:middle;}'+
+    '.footer{margin-top:16px;font-size:11px;color:#999;text-align:center;}'+
+    '@media print{body{padding:10mm;} button{display:none!important;}}'+
+    '</style></head><body>'+
+    '<div class="header">'+
+      '<div><h1>انبار پزشکی</h1><div style="font-size:12px;color:#666;margin-top:4px">گزارش وضعیت موجودی</div></div>'+
+      '<div style="font-size:12px;color:#555">تاریخ: '+dateStr+'</div>'+
     '</div>'+
-    '<table style="width:100%;border-collapse:collapse;border:1px solid #e0e0e0;border-radius:8px;overflow:hidden">'+
-    '<thead><tr style="background:#f0f0f0"><th style="padding:9px 6px;text-align:right;border-bottom:2px solid #ccc">نام کالا</th>'+
-    '<th style="padding:9px 6px;text-align:center;border-bottom:2px solid #ccc">دسته</th>'+
-    '<th style="padding:9px 6px;text-align:center;border-bottom:2px solid #ccc">واحد</th>'+
-    '<th style="padding:9px 6px;text-align:center;border-bottom:2px solid #ccc">موجودی</th>'+
-    '<th style="padding:9px 6px;text-align:center;border-bottom:2px solid #ccc">وضعیت</th></tr></thead>'+
-    '<tbody>'+rows+'</tbody></table>'+
-    '<div style="margin-top:14px;font-size:11px;color:#888;text-align:center">تهیه‌شده توسط برنامه انبار پزشکی — '+dateStr+'</div>';
+    '<div class="stats">'+
+      '<div class="stat" style="background:#f5f5f5"><div class="n">'+fa(totalItems)+'</div><div class="l">قلم کالا</div></div>'+
+      '<div class="stat" style="background:#fff8e1"><div class="n" style="color:#e65100">'+fa(lowCount)+'</div><div class="l">رو به اتمام</div></div>'+
+      '<div class="stat" style="background:#fdecea"><div class="n" style="color:#c62828">'+fa(outCount)+'</div><div class="l">تمام شده</div></div>'+
+    '</div>'+
+    '<table><thead><tr>'+
+      '<th>نام کالا</th><th style="text-align:center">دسته</th><th style="text-align:center">واحد</th><th style="text-align:center">موجودی</th><th style="text-align:center">وضعیت</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="footer">انبار پزشکی — '+dateStr+'</div>'+
+    '</body></html>';
 
-  document.body.appendChild(div);
-
-  html2canvas(div,{scale:2,useCORS:true,backgroundColor:'#fff'}).then(function(canvas){
-    document.body.removeChild(div);
-    var imgData=canvas.toDataURL('image/png');
-    var pdf=new jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-    var pageW=pdf.internal.pageSize.getWidth();
-    var pageH=pdf.internal.pageSize.getHeight();
-    var imgW=pageW-20;
-    var imgH=canvas.height*(imgW/canvas.width);
-    var margin=10,yPos=margin;
-    // multi-page support
-    while(yPos<imgH+margin){
-      if(yPos>margin)pdf.addPage();
-      pdf.addImage(imgData,'PNG',margin,margin-(yPos-margin),imgW,imgH);
-      yPos+=pageH-2*margin;
-    }
-    var fname='انبار-پزشکی-'+tj[0]+'-'+tj[1]+'-'+tj[2]+'.pdf';
-    pdf.save(fname);
-    toast('فایل PDF ذخیره شد ✓');
-  }).catch(function(err){
-    document.body.removeChild(div);
-    console.error(err);
-    toast('خطا در ساخت PDF');
-  });
-};
+  // Use Capacitor Share plugin if available (saves to Files/downloads on Android)
+  var Cap=window.Capacitor;
+  if(Cap&&Cap.Plugins&&Cap.Plugins.Filesystem&&Cap.Plugins.Share){
+    var fname='انبار-پزشکی-'+tj[0]+'-'+tj[1]+'-'+tj[2]+'.html';
+    Cap.Plugins.Filesystem.writeFile({path:fname,data:btoa(unescape(encodeURIComponent(html))),directory:'DOCUMENTS',encoding:'base64'}).then(function(res){
+      return Cap.Plugins.Share.share({title:'گزارش انبار پزشکی',url:res.uri,dialogTitle:'اشتراک‌گذاری گزارش'});
+    }).then(function(){toast('گزارش ذخیره/ارسال شد ✓');}).catch(function(){_printPDF(html);});
+  }else{
+    _printPDF(html);
+  }
+}
+function _printPDF(html){
+  // Fallback: open in new tab / iframe and trigger print
+  var blob=new Blob([html],{type:'text/html;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var w=window.open(url,'_blank');
+  if(w){
+    w.onload=function(){w.print();};
+    setTimeout(function(){URL.revokeObjectURL(url);},60000);
+  }else{
+    // If popup blocked (common in WebView): show inline print view
+    _inlinePrint(html);
+  }
+}
+function _inlinePrint(html){
+  var ov=document.createElement('div');
+  ov.id='pdfOverlay';
+  ov.style.cssText='position:fixed;inset:0;z-index:999;background:#fff;overflow:auto;';
+  var closeBtn='<button onclick="document.getElementById(\'pdfOverlay\').remove();document.title=\'انبار پزشکی\';" '+
+    'style="position:fixed;top:10px;left:10px;z-index:1000;background:#111;color:#fff;border:0;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:700;cursor:pointer;">✕ بستن</button>';
+  var printBtn='<button onclick="window.print();" '+
+    'style="position:fixed;top:10px;left:90px;z-index:1000;background:#2e7d32;color:#fff;border:0;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:700;cursor:pointer;">🖨 چاپ / PDF</button>';
+  ov.innerHTML=closeBtn+printBtn+'<div style="padding:20px;direction:rtl">'+html+'</div>';
+  document.body.appendChild(ov);
+  toast('گزارش آماده است — دکمه «چاپ / PDF» را بزن');
+}
 
 window.addEventListener('error',function(e){console.error(e.error||e.message);});
 window.addEventListener('unhandledrejection',function(e){console.error(e.reason);});
