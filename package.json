@@ -1,0 +1,30 @@
+{
+  "name": "anbar-pezeshki",
+  "version": "1.1.0",
+  "description": "مدیریت آفلاین موجودی و مصرف اقلام پزشکی",
+  "main": "www/index.html",
+  "scripts": {
+    "sync": "cap sync android",
+    "build:android": "cap sync android && cd android && ./gradlew assembleDebug",
+    "open:android": "cap open android"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/h00seinzareei25-blip/Anbardari-.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/h00seinzareei25-blip/Anbardari-/issues"
+  },
+  "homepage": "https://github.com/h00seinzareei25-blip/Anbardari-#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/share": "^8.0.1"
+  }
+}
