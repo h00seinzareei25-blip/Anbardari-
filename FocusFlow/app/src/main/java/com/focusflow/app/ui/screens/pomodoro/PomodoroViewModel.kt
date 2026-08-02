@@ -13,8 +13,8 @@ import javax.inject.Inject
 
 data class PomodoroUiState(
     val state: PomodoroState = PomodoroState.IDLE,
-    val timeRemainingMs: Long = WORK_DURATION_MS,
-    val totalDurationMs: Long = WORK_DURATION_MS,
+    val timeRemainingMs: Long = 25 * 60 * 1000L,
+    val totalDurationMs: Long = 25 * 60 * 1000L,
     val sessionCount: Int = 0,
     val selectedTask: Task? = null,
     val activeTasks: List<Task> = emptyList(),

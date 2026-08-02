@@ -7,7 +7,7 @@ import java.time.LocalDate
 
 @Dao
 interface TaskDao {
-    @Query("SELECT * FROM tasks WHERE isCompleted = 0 ORDER BY CASE priority WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END, dueDate ASC NULLS LAST")
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 ORDER BY CASE priority WHEN 'HIGH' THEN 1 WHEN 'MEDIUM' THEN 2 ELSE 3 END, CASE WHEN dueDate IS NULL THEN 1 ELSE 0 END, dueDate ASC")
     fun getActiveTasks(): Flow<List<Task>>
 
     @Query("SELECT * FROM tasks WHERE isCompleted = 1 ORDER BY completedAt DESC LIMIT 50")

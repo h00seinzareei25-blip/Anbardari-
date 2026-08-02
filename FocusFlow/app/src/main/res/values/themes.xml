@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.FocusFlow" parent="android:Theme.Material.NoTitleBar">
+    <style name="Theme.FocusFlow" parent="android:Theme.Black.NoTitleBar">
         <item name="android:statusBarColor">#1A1A2E</item>
         <item name="android:navigationBarColor">#16213E</item>
         <item name="android:windowBackground">#1A1A2E</item>
