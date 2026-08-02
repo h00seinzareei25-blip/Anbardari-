@@ -16,6 +16,15 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE id = :id")
     suspend fun getTaskById(id: Long): Task?
 
+    @Query("SELECT COUNT(*) FROM tasks WHERE isCompleted = 0")
+    suspend fun getActiveCount(): Int
+
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND dueDate = :date")
+    suspend fun getTasksDueOn(date: String): List<Task>
+
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND dueDate IS NOT NULL AND dueDate <= :date")
+    suspend fun getOverdueOrDueBy(date: String): List<Task>
+
     @Query("SELECT COUNT(*) FROM tasks WHERE isCompleted = 1 AND completedAt >= :startOfDay AND completedAt < :endOfDay")
     suspend fun getCompletedCountForDate(startOfDay: String, endOfDay: String): Int
 

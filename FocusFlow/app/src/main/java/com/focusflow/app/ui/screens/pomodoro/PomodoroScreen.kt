@@ -35,8 +35,17 @@ import kotlin.math.sin
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PomodoroScreen(viewModel: PomodoroViewModel = hiltViewModel()) {
+fun PomodoroScreen(
+    startTaskId: Long? = null,
+    viewModel: PomodoroViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(startTaskId) {
+        if (startTaskId != null && startTaskId > 0) {
+            viewModel.startFromTaskId(startTaskId)
+        }
+    }
 
     Column(
         modifier = Modifier

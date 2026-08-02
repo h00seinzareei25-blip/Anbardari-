@@ -2,6 +2,7 @@ package com.focusflow.app.di
 
 import android.content.Context
 import androidx.room.Room
+import com.focusflow.app.data.db.CommitmentDao
 import com.focusflow.app.data.db.DailyStatsDao
 import com.focusflow.app.data.db.FocusFlowDatabase
 import com.focusflow.app.data.db.PomodoroDao
@@ -27,4 +28,5 @@ object DatabaseModule {
     @Provides fun provideTaskDao(db: FocusFlowDatabase): TaskDao = db.taskDao()
     @Provides fun providePomodoroDao(db: FocusFlowDatabase): PomodoroDao = db.pomodoroDao()
     @Provides fun provideDailyStatsDao(db: FocusFlowDatabase): DailyStatsDao = db.dailyStatsDao()
+    @Provides fun provideCommitmentDao(db: FocusFlowDatabase): CommitmentDao = db.commitmentDao()
 }

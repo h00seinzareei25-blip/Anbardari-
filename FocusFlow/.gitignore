@@ -4,8 +4,11 @@
 /.idea
 .DS_Store
 /build
+**/build/
+.kotlin/
 /captures
 .externalNativeBuild
 .cxx
 local.properties
 **/*.keystore
+*.apk

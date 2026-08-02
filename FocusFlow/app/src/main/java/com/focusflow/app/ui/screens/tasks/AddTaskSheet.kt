@@ -29,6 +29,7 @@ fun AddTaskSheet(
     var selectedPriority by remember { mutableStateOf(Priority.MEDIUM) }
     var selectedCategory by remember { mutableStateOf(TaskCategory.OTHER) }
     var estimatedPomodoros by remember { mutableStateOf(1) }
+    var selectedDueDate by remember { mutableStateOf<LocalDate?>(null) }
 
     Column(
         modifier = Modifier
@@ -133,6 +134,29 @@ fun AddTaskSheet(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+        Text("سررسید", style = MaterialTheme.typography.titleMedium, color = TextSecondary)
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val today = LocalDate.now()
+            listOf(
+                null to "ندارد",
+                today to "امروز",
+                today.plusDays(1) to "فردا",
+                today.plusDays(3) to "۳ روز بعد"
+            ).forEach { (date, label) ->
+                FilterChip(
+                    selected = selectedDueDate == date,
+                    onClick = { selectedDueDate = date },
+                    label = { Text(label) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = AccentOrange,
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
         Text("تعداد پومودورو تخمینی", style = MaterialTheme.typography.titleMedium, color = TextSecondary)
         Spacer(modifier = Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -157,7 +181,7 @@ fun AddTaskSheet(
         Button(
             onClick = {
                 if (title.isNotBlank()) {
-                    onAdd(title, description, selectedPriority, selectedCategory, null, estimatedPomodoros)
+                    onAdd(title, description, selectedPriority, selectedCategory, selectedDueDate, estimatedPomodoros)
                     onDismiss()
                 }
             },

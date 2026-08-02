@@ -7,7 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,14 +16,32 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.focusflow.app.ui.components.CommitmentCard
 import com.focusflow.app.ui.components.TaskCard
 import com.focusflow.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TasksScreen(viewModel: TaskViewModel = hiltViewModel()) {
+fun TasksScreen(
+    onStartPomodoro: (Long) -> Unit = {},
+    viewModel: TaskViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var showAddSheet by remember { mutableStateOf(false) }
+    var showCommitmentSheet by remember { mutableStateOf(false) }
+
+    if (uiState.bonusJustAwarded) {
+        AlertDialog(
+            onDismissRequest = viewModel::clearBonusFlag,
+            title = { Text("تعهد کامل شد! 🎉") },
+            text = { Text("همه کارهای تعهدی امروز رو تموم کردی. +۵۰ امتیاز پاداش گرفتی!") },
+            confirmButton = {
+                TextButton(onClick = viewModel::clearBonusFlag) {
+                    Text("عالی!", color = AccentGreen)
+                }
+            }
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(SurfaceDark)) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -54,49 +72,54 @@ fun TasksScreen(viewModel: TaskViewModel = hiltViewModel()) {
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceDark)
             )
 
-            if (uiState.activeTasks.isEmpty() && !uiState.showCompleted) {
-                EmptyTasksView(modifier = Modifier.weight(1f))
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 90.dp, top = 8.dp)
-                ) {
-                    if (uiState.activeTasks.isNotEmpty()) {
-                        item {
-                            SectionHeader(
-                                title = "کارهای فعال",
-                                count = uiState.activeTasks.size
-                            )
-                        }
-                        items(uiState.activeTasks, key = { it.id }) { task ->
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = slideInHorizontally() + fadeIn(),
-                                exit = slideOutHorizontally() + fadeOut()
-                            ) {
-                                TaskCard(
-                                    task = task,
-                                    onComplete = { viewModel.completeTask(task) },
-                                    onDelete = { viewModel.deleteTask(task) }
-                                )
-                            }
-                        }
-                    }
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 90.dp, top = 4.dp)
+            ) {
+                item {
+                    CommitmentCard(
+                        progress = uiState.commitment,
+                        onSetCommitment = { showCommitmentSheet = true },
+                        onClear = { showCommitmentSheet = true }
+                    )
+                }
 
-                    if (uiState.showCompleted && uiState.completedTasks.isNotEmpty()) {
-                        item {
-                            SectionHeader(
-                                title = "انجام‌شده‌ها ✓",
-                                count = uiState.completedTasks.size
-                            )
-                        }
-                        items(uiState.completedTasks, key = { "done_${it.id}" }) { task ->
-                            TaskCard(
-                                task = task,
-                                onComplete = {},
-                                onDelete = { viewModel.deleteTask(task) }
-                            )
-                        }
+                if (uiState.activeTasks.isEmpty() && !uiState.showCompleted) {
+                    item { EmptyTasksView() }
+                }
+
+                if (uiState.activeTasks.isNotEmpty()) {
+                    item {
+                        SectionHeader(
+                            title = "کارهای فعال",
+                            count = uiState.activeTasks.size
+                        )
+                    }
+                    items(uiState.activeTasks, key = { it.id }) { task ->
+                        val committedIds = uiState.commitment.commitment?.taskIdList()?.toSet().orEmpty()
+                        TaskCard(
+                            task = task,
+                            onComplete = { viewModel.completeTask(task) },
+                            onDelete = { viewModel.deleteTask(task) },
+                            onStartPomodoro = { onStartPomodoro(task.id) },
+                            isCommitted = task.id in committedIds
+                        )
+                    }
+                }
+
+                if (uiState.showCompleted && uiState.completedTasks.isNotEmpty()) {
+                    item {
+                        SectionHeader(
+                            title = "انجام‌شده‌ها ✓",
+                            count = uiState.completedTasks.size
+                        )
+                    }
+                    items(uiState.completedTasks, key = { "done_${it.id}" }) { task ->
+                        TaskCard(
+                            task = task,
+                            onComplete = {},
+                            onDelete = { viewModel.deleteTask(task) }
+                        )
                     }
                 }
             }
@@ -128,6 +151,20 @@ fun TasksScreen(viewModel: TaskViewModel = hiltViewModel()) {
             )
         }
     }
+
+    if (showCommitmentSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showCommitmentSheet = false },
+            containerColor = SurfaceDarkCard,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            CommitmentPickerSheet(
+                tasks = uiState.activeTasks,
+                onDismiss = { showCommitmentSheet = false },
+                onConfirm = viewModel::setCommitment
+            )
+        }
+    }
 }
 
 @Composable
@@ -151,19 +188,16 @@ private fun SectionHeader(title: String, count: Int) {
 }
 
 @Composable
-private fun EmptyTasksView(modifier: Modifier = Modifier) {
+private fun EmptyTasksView() {
     Column(
-        modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("🎉", style = MaterialTheme.typography.headlineLarge)
         Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            "هیچ کاری نداری!",
-            style = MaterialTheme.typography.titleLarge,
-            color = TextPrimary
-        )
+        Text("هیچ کاری نداری!", style = MaterialTheme.typography.titleLarge, color = TextPrimary)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             "یه کار جدید اضافه کن\nو شروع کن به پیشرفت",

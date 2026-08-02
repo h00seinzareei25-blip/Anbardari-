@@ -18,7 +18,8 @@ data class PomodoroUiState(
     val sessionCount: Int = 0,
     val selectedTask: Task? = null,
     val activeTasks: List<Task> = emptyList(),
-    val motivationalMessage: String = "آماده‌ای؟ بزن بریم! 🚀"
+    val motivationalMessage: String = "آماده‌ای؟ بزن بریم! 🚀",
+    val autoStarted: Boolean = false
 )
 
 @HiltViewModel
@@ -30,12 +31,53 @@ class PomodoroViewModel @Inject constructor(
     val uiState: StateFlow<PomodoroUiState> = _uiState.asStateFlow()
 
     private var timer: CountDownTimer? = null
+    private var pendingStartTaskId: Long? = null
 
     init {
         viewModelScope.launch {
             taskRepository.getActiveTasks().collect { tasks ->
-                _uiState.update { it.copy(activeTasks = tasks) }
+                _uiState.update { state ->
+                    val selected = state.selectedTask?.let { sel ->
+                        tasks.find { it.id == sel.id } ?: sel
+                    }
+                    state.copy(activeTasks = tasks, selectedTask = selected)
+                }
+                // If we were waiting for a task to load, start now
+                pendingStartTaskId?.let { id ->
+                    val task = tasks.find { it.id == id }
+                    if (task != null) {
+                        pendingStartTaskId = null
+                        startWithTask(task)
+                    }
+                }
             }
+        }
+    }
+
+    /** Called from UI when navigating with a taskId — selects and auto-starts. */
+    fun startFromTaskId(taskId: Long) {
+        if (_uiState.value.autoStarted && _uiState.value.selectedTask?.id == taskId) return
+        val existing = _uiState.value.activeTasks.find { it.id == taskId }
+        if (existing != null) {
+            startWithTask(existing)
+        } else {
+            pendingStartTaskId = taskId
+            viewModelScope.launch {
+                val task = taskRepository.getTaskById(taskId)
+                if (task != null && !task.isCompleted) {
+                    pendingStartTaskId = null
+                    startWithTask(task)
+                }
+            }
+        }
+    }
+
+    private fun startWithTask(task: Task) {
+        _uiState.update {
+            it.copy(selectedTask = task, autoStarted = true)
+        }
+        if (_uiState.value.state == PomodoroState.IDLE || _uiState.value.state == PomodoroState.PAUSED) {
+            startWork()
         }
     }
 
@@ -64,7 +106,6 @@ class PomodoroViewModel @Inject constructor(
 
     fun resume() {
         val remaining = _uiState.value.timeRemainingMs
-        val wasWorking = _uiState.value.sessionCount >= 0
         _uiState.update { it.copy(state = PomodoroState.WORK) }
         startTimer(remaining) { onWorkFinished() }
     }
@@ -106,7 +147,10 @@ class PomodoroViewModel @Inject constructor(
                 sessionCount = newCount,
                 timeRemainingMs = breakDuration,
                 totalDurationMs = breakDuration,
-                motivationalMessage = if (isLongBreak) "عالی! ۴ سشن تموم کردی. استراحت طولانی بکن! ☕" else "آفرین! ۵ دقیقه استراحت کن 😊"
+                motivationalMessage = if (isLongBreak)
+                    "عالی! ۴ سشن تموم کردی. استراحت طولانی بکن! ☕"
+                else
+                    "آفرین! ۵ دقیقه استراحت کن 😊"
             )
         }
         startTimer(breakDuration) { onBreakFinished() }

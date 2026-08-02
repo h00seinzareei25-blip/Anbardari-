@@ -40,6 +40,16 @@ class TaskRepository @Inject constructor(
 
     suspend fun getTotalCompleted(): Int = taskDao.getTotalCompleted()
 
+    suspend fun getTaskById(id: Long): Task? = taskDao.getTaskById(id)
+
+    suspend fun getActiveCount(): Int = taskDao.getActiveCount()
+
+    suspend fun getTasksDueOn(date: LocalDate): List<Task> =
+        taskDao.getTasksDueOn(date.toString())
+
+    suspend fun getOverdueOrDueBy(date: LocalDate): List<Task> =
+        taskDao.getOverdueOrDueBy(date.toString())
+
     private fun calculatePoints(task: Task): Int {
         val basePoints = when (task.priority) {
             Priority.HIGH -> 30

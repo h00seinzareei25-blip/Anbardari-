@@ -1,7 +1,6 @@
 package com.focusflow.app.ui.components
 
-import androidx.compose.animation.*
-import androidx.compose.foundation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -11,7 +10,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -21,12 +19,13 @@ import com.focusflow.app.ui.theme.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskCard(
     task: Task,
     onComplete: () -> Unit,
     onDelete: () -> Unit,
+    onStartPomodoro: (() -> Unit)? = null,
+    isCommitted: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -37,7 +36,9 @@ fun TaskCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isCommitted) PrimaryPurple.copy(alpha = 0.15f) else CardBackground
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -51,14 +52,20 @@ fun TaskCard(
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = task.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (task.isCompleted) TextSecondary else TextPrimary,
-                    textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isCommitted) {
+                        Text("🎯 ", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text(
+                        text = task.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (task.isCompleted) TextSecondary else TextPrimary,
+                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                }
 
                 if (task.description.isNotBlank()) {
                     Text(
@@ -92,8 +99,21 @@ fun TaskCard(
             }
 
             if (!task.isCompleted) {
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    if (onStartPomodoro != null) {
+                        IconButton(
+                            onClick = onStartPomodoro,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.PlayArrow,
+                                contentDescription = "شروع پومودورو",
+                                tint = PomodoroWork,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
                     IconButton(
                         onClick = onComplete,
                         modifier = Modifier.size(40.dp)
@@ -107,13 +127,13 @@ fun TaskCard(
                     }
                     IconButton(
                         onClick = { showDeleteConfirm = true },
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             Icons.Default.Delete,
                             contentDescription = "حذف",
                             tint = AccentRed.copy(alpha = 0.7f),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }

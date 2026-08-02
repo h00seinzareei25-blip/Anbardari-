@@ -50,12 +50,23 @@ class FocusFlowApp : Application(), Configuration.Provider {
             description = "اعلان برای حفظ streak روزانه"
         }
 
-        manager.createNotificationChannels(listOf(pomodoroChannel, reminderChannel, streakChannel))
+        val dueChannel = NotificationChannel(
+            CHANNEL_DUE,
+            "سررسید کارها",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "اعلان کارهای دارای سررسید و عقب‌افتاده"
+        }
+
+        manager.createNotificationChannels(
+            listOf(pomodoroChannel, reminderChannel, streakChannel, dueChannel)
+        )
     }
 
     companion object {
         const val CHANNEL_POMODORO = "channel_pomodoro"
         const val CHANNEL_REMINDER = "channel_reminder"
         const val CHANNEL_STREAK = "channel_streak"
+        const val CHANNEL_DUE = "channel_due"
     }
 }
