@@ -1,0 +1,3 @@
+-keep class com.focusflow.app.** { *; }
+-keepattributes *Annotation*
+-dontwarn kotlin.**
